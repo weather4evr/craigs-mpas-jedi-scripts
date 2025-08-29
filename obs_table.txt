@@ -1,0 +1,23 @@
+# Any line containing '#' will be ignored by the csh scripts
+# Each line should be delimeted by "|" to be parsed correctly by the csh scripts
+# The width of each column is arbitrary; it's the "|" delimeter that matters
+# Column 1 (inst): Instrument. There should be an IODA file called ${instrument}_obs_${analysis_date}.h5 
+# Column 2 (hloc): Horizontal localization (km) for observation-space localization, as in an EnKF
+# Column 3 (vloc): Vertical   localization (km or scale-height) for observation-space localization, as in an EnKF
+# Column 4 (vunit): Vertical localization unit: height or pressure ('pressure' really means scale-height in log pressure coordinates)
+# Column 5 (bgchk): Outlier check threshold
+# Column 6 (hthin): Horizontal thinning distance (km). Set to -1 if no thinning is desired?? [ may not be working correctly]
+# Column 7 (vthin): Vertical   thinning distance (Pa). Set to -1 if no thinning is desired?? [ may not be working correctly]
+# Column 8 (channels): Radiance channels, comma separated, but without space (e.g., 5,6,7); set to -1 if not a radiance ob
+# Column 9 (bc): Only applicable to radiances; whether there is cycling VarBC (T for true; F for false). Can set to -1 if N/A.
+#
+# The observation files MUST be named ${inst}_obs_${DATE}.h5, where, here, ${inst} refers to the leftmost column of the table
+#
+# -------------------------------------------------------------------------------------------------
+# inst             | hloc | vloc | vunit    | bgchk |  hthin  |  vthin   |   channels     | bc |
+# -------------------------------------------------------------------------------------------------
+#aircraft           | 1600 |  4   | height   |   5   |  30.0   |  2500.0  |  -1            | -1 |
+#amsua_n19-cld      | 1600 |  4   | height   |   5   |  30.0   |  -1      |  5,6,7,8,9     | T  |
+CWB_dualpol        | 8    |  2   | height   |  20   |  2.0    |  -1      |  -1            | -1 |
+CWB_rw             | 36   |  3   | height   |   8   |  2.0    |  -1      |  -1            | -1 |
+ahi_himawari8      | 12   |  8   | height   |   3   |  1      |  -1      |  8,9,10        | F  |

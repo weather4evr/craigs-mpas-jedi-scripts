@@ -1,0 +1,11 @@
+These are relatively simple scripts to run MPAS-JEDI.  Right now, only the LETKF capability works.  The EnVar capability is almost there.  The scripts basically do data assimilation and run the MPAS model.  You're on your own for getting input files, external data, etc.
+
+The comments in the code are pretty good (I think), so have a look.  A few things to get you started:
+
+1) driver.csh is the main script that you edit and execute.  You may also need to change some namelist variables (namelist_template.csh.  With luck, you won't have to touch any of the other files, but if something breaks, you should be able to easily figure out where things went wrong...in fact, if running on a machine other than NSF NCAR's "Derecho" things will likely break.
+
+2) In terms of your computing environment, make sure you have a "default" environment setup such that "module restore default" will actually do something (see driver.csh). If you have issues with this, look for "default_environment_file" in driver.csh and modify as needed.  You should have the "NCO" tools in your default environment.
+
+3) run_jedi.csh calls some python helper scripts. So, it would probably be good to have python in your default environment if possible.  If not, that's okay--see run_jedi.csh to see how python is loaded on Derecho.
+
+4) Basically, don't be afraid to edit the .csh scripts.  If you're familiar with scripting, I think most of it will make sense.
