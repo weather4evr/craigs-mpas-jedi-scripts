@@ -310,7 +310,7 @@ EOF
    ln -sf ${MPAS_TABLE_DIR}/*.DBL .
    ln -sf ${MPAS_TABLE_DIR}/*DATA .
    if ( $config_microp_scheme =~ *thompson* ) then
-      set fnames = `ls ./*MP_THOMPSON*"` # were hopeully linked in the previous 3 lines
+      set fnames = `ls ./*MP_THOMPSON*` # were hopeully linked in the previous 3 lines
       if ( $#fnames != 4 ) then
 	 touch -f ./MISSING_THOMPSON_MP_TABLES
 	 echo "Missing MP_THOMPSON files in $MPAS_TABLE_DIR".
