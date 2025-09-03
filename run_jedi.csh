@@ -719,9 +719,11 @@ endif
 ln -sf $jedi_environment_file .  # link to keep a record
 source $jedi_environment_file
 #limit stacksize unlimited
-#setenv OOPS_TRACE 1
+setenv OOPS_TRACE 0
+setenv OOPS_DEBUG 0
 setenv OMP_NUM_THREADS 1
-setenv GFORTRAN_CONVERT_UNIT 'native;big_endian:101-200' # needed for gfortran compiler
+setenv FI_CXI_RX_MATCH_MODE 'hybrid'
+setenv GFORTRAN_CONVERT_UNIT 'big_endian:101-200' # needed for gfortran compiler
 setenv F_UFMTENDIAN 'big:101-200' # maybe needed for intel compiler
 if ( $?mpasjedi_library_path ) setenv LD_LIBRARY_PATH ${mpasjedi_library_path}:$LD_LIBRARY_PATH # need path of library on derecho
 
@@ -739,9 +741,9 @@ if ( $JEDI_ANALYSIS_TYPE =~ *enkf_prior* ) then
    # first run EnKF in "observer" mode
    mv $full_yaml_file ./observer.yaml
 
-  #if ( $JEDI_ANALYSIS_TYPE == enkf_prior_members ) then
-  #   sed -i '/Gaussian Thinning/{N;d;}' ./observer.yaml
-  #endif
+   if ( $JEDI_ANALYSIS_TYPE == enkf_prior_members ) then
+      sed -i '/Gaussian Thinning/{N;d;}' ./observer.yaml
+   endif
 
    $run_cmd_jedi -n $jedi_enkf_num_procs_observer -ppn $jedi_enkf_num_procs_per_node_observer $jedi_exec ./observer.yaml  ./observer.log &
    set pid = $!
@@ -799,14 +801,15 @@ if ( $JEDI_ANALYSIS_TYPE =~ *enkf_prior* ) then
       # See https://stackoverflow.com/questions/64842342/bash-sed-replace-line-in-file-at-same-indentation-level
       #   this is to replace the line after Background Check at the same indentation level with threshold: 999999
       sed -i '/Background Check/{n;s/^\( *\).*/\1threshold: 999999/}' observer.yaml
-     #sed -i '/Gaussian Thinning/{N;d;}' observer.yaml
+      sed -i '/Gaussian Thinning/{N;d;}' observer.yaml
 
       # Run MPAS-JEDI again
       source $jedi_environment_file
       #limit stacksize unlimited
-      #setenv OOPS_TRACE 1
+      setenv OOPS_TRACE 0
+      setenv OOPS_DEBUG 0
       setenv OMP_NUM_THREADS 1
-      setenv GFORTRAN_CONVERT_UNIT 'native;big_endian:101-200' # needed for gfortran compiler
+      setenv GFORTRAN_CONVERT_UNIT 'big_endian:101-200' # needed for gfortran compiler
       setenv F_UFMTENDIAN 'big:101-200' # maybe needed for intel compiler
       if ( $?mpasjedi_library_path ) setenv LD_LIBRARY_PATH ${mpasjedi_library_path}:$LD_LIBRARY_PATH # need path of library on derecho
 

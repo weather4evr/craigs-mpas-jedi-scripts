@@ -34,9 +34,10 @@ setenv jedi_walltime_variational            10
 
    # LETKF in "observer" mode. Need to use the same number of processors for the mean and members
    # But, number of processors per node can differ for mean and the members
-setenv jedi_enkf_num_procs_observer      1024  # JEDI EnKF (LETKF/GETKF)
+setenv jedi_enkf_num_procs_observer_mean      1024  # JEDI EnKF (LETKF/GETKF)
+setenv jedi_enkf_num_procs_observer_members   512   
 setenv jedi_enkf_num_procs_per_node_observer_mean 64
-setenv jedi_enkf_num_procs_per_node_observer_members $num_procs_per_node
+setenv jedi_enkf_num_procs_per_node_observer_members 64 #$num_procs_per_node
 setenv jedi_walltime_enkf_observer       10
 
    # LETKF "solver" ; these are used for just solver and for everything if all_at_once == true
@@ -44,7 +45,7 @@ setenv jedi_enkf_num_procs_solver        1024  # JEDI EnKF (LETKF/GETKF)
 setenv jedi_enkf_num_procs_per_node_solver 64 #$num_procs_per_node
 setenv jedi_walltime_enkf_solver         20
 
-# Account numbers
+# Account numbers and queues
 setenv mpas_account  "NMMM0073" 
 setenv jedi_account  $mpas_account
 
@@ -62,7 +63,7 @@ setenv RUN_MPAS_INITIALIZE     false
 
 setenv RUN_JEDI_ENKF   true
    setenv all_at_once  false # if true, run the EnKF "all at once", with just one execution of run_jedi.csh
-   setenv do_oma       false #  currently working; keep false
+   setenv do_oma       false #  currently not working; keep false
 
 setenv RUN_JEDI_EnVar  false
 
@@ -106,8 +107,8 @@ setenv jedi_environment_file  ${MPAS_JEDI_BUNDLE_DIR}/code/mpas-bundle/env-setup
 setenv mpasjedi_library_path  ${MPAS_JEDI_BUNDLE_DIR}/build/lib  # Full path location to libmpasjedi.so that is built when compiling JEDI; needed on Derecho
 setenv run_cmd_jedi           mpiexec # MPI command to run jedi, could differ from $run_cmd (above) that is based on the machine
 setenv mpas_compiled_within_jedi    true  # (true, false) If true, use the MPAS model/init executables compiled within mpas-bundle using JEDI environment. If false use jedi_environment_file for mpas environment
-   # next two options only used if $mpas_compiled_within_jedi = Falsle
    setenv mpas_environment_file      ${SCRIPT_DIR}/mpas_environment.txt # Environment used to compile MPAS (outside JEDI context); file will be created below
+   # next option only used if $mpas_compiled_within_jedi = Falsle
    set mpas_modules = ( ncarenv/23.09   craype/2.7.23 intel-oneapi/2023.2.1 ncarcompilers/1.0.0 cray-mpich/8.1.27 hdf5-mpi/1.12.2 netcdf-mpi/4.9.2 parallelio/2.6.2 parallel-netcdf/1.12.3 ) # if mpas_modules = ( "default" ), use the default environment. Otherwise, set to the list of modules used to compile MPAS (outside JEDI context)
 
 ############################################################
@@ -228,7 +229,7 @@ setenv MPAS_INIT_FREE_FCST_OUTPUT_DIR_TOP  $MPAS_INIT_DETERMINISTIC_OUTPUT_DIR_T
 setenv num_mpas_vert_levels   56   # Number of vertical levels (mass levels; not edges)
 setenv num_mpas_soil_levels   4    # Number of soil levels
 setenv z_top_km               30   # MPAS model top (km)
-setenv vert_levels_file       ${SCRIPT_DIR}/zeta_CWA_2025.txt # File with specified vertical levels; set to "" or remove from config_specified_zeta_levels in namelist if you don't want
+setenv vert_levels_file       ${SCRIPT_DIR}/zeta_CWA_2025.txt # File with specified vertical levels; set to dummy and remove from config_specified_zeta_levels in namelist if you don't want
 
 # -------------------------------------------------------
 # MPAS mesh for deterministic forecasts/DA
@@ -397,7 +398,7 @@ while ( $DATE <= $end_init )
 	 	  -l walltime=${mpas_init_walltime}:00 $job_array_str \
 	 	  -l "select=${this_num_needed_nodes}:ncpus=${num_procs_per_node}:mpiprocs=${mpas_init_num_procs_per_node}" \
 	 	   ${SCRIPT_DIR}/run_mpas_init.csh`
-        #${SCRIPT_DIR}/run_mpas_init.csh 1
+        #${SCRIPT_DIR}/run_mpas_init.csh
       end
    endif
 
@@ -416,14 +417,14 @@ while ( $DATE <= $end_init )
 
       else # call run_jedi.csh 3 times; first for HofX applied to ensemble mean prior, then for HofX applied to members, then EnKF solver
 
-setenv jedi_enkf_num_procs_observer      1024  # JEDI EnKF (LETKF/GETKF)
+	 setenv jedi_enkf_num_procs_observer      $jedi_enkf_num_procs_observer_mean  # JEDI EnKF (LETKF/GETKF)
 	 setenv JEDI_ANALYSIS_TYPE   enkf_prior_mean
 	 set num_needed_nodes = `echo "$jedi_enkf_num_procs_observer / $jedi_enkf_num_procs_per_node_observer_mean" | bc`
 	 set id_enkf = `qsub -N "enkf_${DATE}" $dependency_condition -A "$jedi_account"  -q $jedi_queue -l job_priority=${jedi_priority} \
 	     -l "select=${num_needed_nodes}:ncpus=${num_procs_per_node}:mpiprocs=${jedi_enkf_num_procs_per_node_observer_mean}" \
 	     -l walltime=${jedi_walltime_enkf_observer}:00 ${SCRIPT_DIR}/run_jedi.csh`
 
-setenv jedi_enkf_num_procs_observer      256  # JEDI EnKF (LETKF/GETKF)
+	 setenv jedi_enkf_num_procs_observer      $jedi_enkf_num_procs_observer_members  # JEDI EnKF (LETKF/GETKF)
 	 setenv JEDI_ANALYSIS_TYPE   enkf_prior_members
 	 set dependency_condition = "-W depend=afterok:${id_enkf}"
 	#set dependency_condition = ""

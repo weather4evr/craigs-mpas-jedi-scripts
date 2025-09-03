@@ -83,7 +83,9 @@ else
 endif
 
 ln -sf ${MPAS_GRID_INFO_DIR}/${graph_info_prefx}* .
-if ( -e $vert_levels_file ) ln -sf $vert_levels_file . # just for record keeping. full path used in namelist
+if ( $?vert_levels_file ) then
+   if ( -e $vert_levels_file ) ln -sf $vert_levels_file . # just for record keeping. full path used in namelist
+endif
 
 # First iteration  : Interpolate static data onto the domain--only need to do once per domain/mesh
 # Second iteration : Interpolate SST update data onto the domain, if $update_sst = .true.
