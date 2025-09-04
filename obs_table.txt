@@ -1,7 +1,7 @@
 # Any line containing '#' will be ignored by the csh scripts
 # Each line should be delimeted by "|" to be parsed correctly by the csh scripts
 # The width of each column is arbitrary; it's the "|" delimeter that matters
-# Column 1 (inst): Instrument. There should be an IODA file called ${instrument}_obs_${analysis_date}.h5 
+# Column 1 (inst): Instrument. There should be an IODA file called ${inst}_obs_${analysis_date}.h5
 # Column 2 (hloc): Horizontal localization (km) for observation-space localization, as in an EnKF
 # Column 3 (vloc): Vertical   localization (km or scale-height) for observation-space localization, as in an EnKF
 # Column 4 (vunit): Vertical localization unit: height or pressure ('pressure' really means scale-height in log pressure coordinates)
