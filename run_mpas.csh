@@ -295,7 +295,7 @@ EOF
    #---------------------------------------------------------
    if ( $mpas_compiled_within_jedi == true || $mpas_compiled_within_jedi == .true. ) then
      #ln -sf ${MPAS_CODE_DIR}/build/mpas-bundle/bin/mpas_atmosphere ./atmosphere_model
-      set exec = `find $MPAS_JEDI_BUNDLE_DIR -name mpas_atmosphere` # could be several places
+      set exec = `find ${MPAS_JEDI_BUNDLE_DIR}/build -name mpas_atmosphere` # could be several places
       ln -sf $exec[1] ./atmosphere_model
       set this_run_cmd = $run_cmd_jedi
       # If these aren't in $mpas_environment_file, they need to be set
@@ -310,7 +310,7 @@ EOF
    ln -sf ${MPAS_TABLE_DIR}/*.DBL .
    ln -sf ${MPAS_TABLE_DIR}/*DATA .
    if ( $config_microp_scheme =~ *thompson* ) then
-      set fnames = `ls ./*MP_THOMPSON*` # were hopeully linked in the previous 3 lines
+      set fnames = `ls ./*MP_THOMPSON*` # were hopefully linked in the previous 3 lines
       if ( $#fnames != 4 ) then
 	 touch -f ./MISSING_THOMPSON_MP_TABLES
 	 echo "Missing MP_THOMPSON files in $MPAS_TABLE_DIR".

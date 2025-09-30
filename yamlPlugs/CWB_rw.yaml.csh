@@ -16,7 +16,7 @@ cat >> $output_fname << EOF
     obsdatain:
       <<: *ObsDataIn
     obsdataout: *ObsDataOut
-    simulated variables: [radialVelocity]
+    simulated variables: &simulatedVars [radialVelocity]
   obs error: *ObsErrorDiagonal
   obs operator:
     name: RadarRadialVelocity
@@ -24,7 +24,7 @@ cat >> $output_fname << EOF
     <<: *GetValues
   obs filters:
   - filter: PreQC
-    maxvalue: $PreQC_maxvalue
+    maxvalue: 3
   - filter: Bounds Check
     filter variables:
     - name: radialVelocity
@@ -47,3 +47,14 @@ cat >> $output_fname << EOF
     <<: *multiIterationFilter
   - *reduceObsSpace
 EOF
+
+if ( $assimOrEval == eval ) then
+  cat >> $output_fname << EOF2
+  - filter: Perform Action
+    filter variables: *simulatedVars # [airTemperature, windEastward, windNorthward, specificHumidity]
+    action:
+      name: passivate
+EOF2
+
+endif
+

@@ -1,11 +1,10 @@
 #!/bin/csh
 cd $2
 set output_fname = $1 # file that is output (added to, given 'cat >>' )
-# observations:   # note the two spaces
 cat >> $output_fname << EOF
 - obs space:
     <<: *ObsSpace
-    name: RadarZh
+    name: Refl10cm
     _obsdatain: &ObsDataIn
       engine:
         type: H5File
@@ -17,7 +16,7 @@ cat >> $output_fname << EOF
     obsdatain:
       <<: *ObsDataIn
     obsdataout: *ObsDataOut
-    simulated variables: [equivalentReflectivityFactor]
+    simulated variables: &simulatedVars [equivalentReflectivityFactor]
   obs error: *ObsErrorDiagonal
 ##<<: *heightAndHorizObsLocCloud
   obs operator:
@@ -42,7 +41,7 @@ cat >> $output_fname << EOF
     <<: *GetValues
   obs filters:
   - filter: PreQC
-    maxvalue: $PreQC_maxvalue
+    maxvalue: 3
   - filter: Bounds Check
     filter variables:
     - name: equivalentReflectivityFactor
@@ -51,22 +50,34 @@ cat >> $output_fname << EOF
     flag all filter variables if any test variable is out of bounds: true
     minvalue: 0.0
     maxvalue: 0.1
+
   - filter: Perform Action
     filter variables:
     - name: equivalentReflectivityFactor
     action:
       name: assign error
       error parameter: 3.0
+
   - filter: Bounds Check
     filter variables:
     - name: equivalentReflectivityFactor
     maxvalue: 75.0
     minvalue: -15.0
-#  - filter: Thinning
-#    amount: 0.6 # fraction to be thinned
-#    random seed: 2022062406
+
   - filter: Background Check
     threshold: $bgchk_thresh #5.0
+
     <<: *multiIterationFilter
   - *reduceObsSpace
 EOF
+
+if ( $assimOrEval == eval ) then
+  cat >> $output_fname << EOF2
+  - filter: Perform Action
+    filter variables: *simulatedVars # [airTemperature, windEastward, windNorthward, specificHumidity]
+    action:
+      name: passivate
+EOF2
+
+endif
+

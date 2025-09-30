@@ -8,15 +8,15 @@ cat >> $output_fname << EOF
     _obsdatain: &ObsDataIn
       engine:
         type: H5File
-        obsfile: $inputDataFile #./aircraft_obs_${DATE}.h5
+        obsfile: $inputDataFile
     _obsdataout: &ObsDataOut
       engine:
         type: H5File
-        obsfile: $outputDataFile #Data/obsout_omb_aircraft.h5
+        obsfile: $outputDataFile
     obsdatain:
       <<: *ObsDataIn
     obsdataout: *ObsDataOut
-    simulated variables: [brightnessTemperature]
+    simulated variables: &simulatedVars [brightnessTemperature]
     channels: &ahi_himawari8_channels $channels # 8-10
   obs error: *ObsErrorDiagonal
   obs operator:
@@ -37,6 +37,21 @@ cat >> $output_fname << EOF
 #   flag all filter variables if any test variable is out of bounds: true
 #   minvalue: 0.0
 #   maxvalue: 0.1
+
+#  Useflag check
+  - filter: Bounds Check
+    filter variables:
+    - name: brightnessTemperature
+      channels: *ahi_himawari8_channels
+    test variables:
+    - name: ObsFunction/ChannelUseflagCheckRad
+      channels: *ahi_himawari8_channels
+      options:
+        channels: *ahi_himawari8_channels
+        use_flag: [ 1, 1, 1 ]  # -1: not used; 0: monitoring; 1: used
+    minvalue: 1.0e-12
+    action:
+      name: reject
   - filter: Gaussian Thinning
     horizontal_mesh: $horiz_thin
   - filter: Background Check
@@ -94,3 +109,15 @@ cat >> $output_fname << EOF
               channels: *ahi_himawari8_channels
               btlim: [235.2, 245.7, 258.3] # comment out if using Okamoto (2014) error model
 EOF
+
+#if ( $assimOrEval == eval ) then
+#  cat >> $output_fname << EOF2
+#  - filter: Perform Action
+#    filter variables:
+#    - name: *simulatedVars # brightnessTemperature
+#      channels: *ahi_himawari8_channels
+#    action:
+#      name: passivate
+#EOF2
+#endif
+

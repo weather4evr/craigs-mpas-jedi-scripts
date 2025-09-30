@@ -8,12 +8,12 @@ _regional reduce obs space: &regionalReduceObsSpace
   where:
     - variable:
         name: MetaData/latitude
-      minvalue: 15.0 #-90.0
-      maxvalue: 30.0 #90.0
+      minvalue: -90.0
+      maxvalue: 90.0
     - variable:
         name: MetaData/longitude
-      minvalue: 110.0 #-180.0
-      maxvalue: 130.0 #180.0
+      minvalue: -180.0
+      maxvalue: 180.0
   action:
     name: reduce obs space
 

@@ -5,31 +5,42 @@ cat >> $output_fname << EOF
 - obs space:
     <<: *ObsSpace
     name: aircraft
-    _obsdatain:
+    _obsdatain: &ObsDataIn
       engine:
         type: H5File
-        obsfile: $inputDataFile #./aircraft_obs_${DATE}.h5
-    _obsdataout:
+        obsfile: $inputDataFile
+    _obsdataout: &ObsDataOut
       engine:
         type: H5File
-        obsfile: $outputDataFile #Data/obsout_omb_aircraft.h5
+        obsfile: $outputDataFile
     obsdatain:
       <<: *ObsDataIn
     obsdataout: *ObsDataOut
-    simulated variables: [air_temperature, eastward_wind, northward_wind, specific_humidity]
+    simulated variables: &simulatedVars [airTemperature, windEastward, windNorthward, specificHumidity]
   obs error: *ObsErrorDiagonal
   obs operator:
     name: VertInterp
+    observation alias file: obsop_name_map.yaml
   get values:
     <<: *GetValues
   obs filters:
   - filter: PreQC
-    maxvalue: 0
+    maxvalue: 3
   - filter: Gaussian Thinning
     horizontal_mesh: $horiz_thin
     vertical_mesh: $vert_thin
   - filter: Background Check
     threshold: $bgchk_thresh #5.0
     <<: *multiIterationFilter
-  - *reduceObsSpace
+ #- *reduceObsSpace
 EOF
+
+if ( $assimOrEval == eval ) then
+  cat >> $output_fname << EOF2
+  - filter: Perform Action
+    filter variables: *simulatedVars # [airTemperature, windEastward, windNorthward, specificHumidity]
+    action:
+      name: passivate
+EOF2
+
+endif

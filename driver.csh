@@ -34,8 +34,8 @@ setenv jedi_walltime_variational            10
 
    # LETKF in "observer" mode. Need to use the same number of processors for the mean and members
    # But, number of processors per node can differ for mean and the members
-setenv jedi_enkf_num_procs_observer_mean      1024  # JEDI EnKF (LETKF/GETKF)
-setenv jedi_enkf_num_procs_observer_members   512   
+setenv jedi_enkf_num_procs_observer_mean      512   # JEDI EnKF (LETKF/GETKF)
+setenv jedi_enkf_num_procs_observer_members   512 #256   
 setenv jedi_enkf_num_procs_per_node_observer_mean 64
 setenv jedi_enkf_num_procs_per_node_observer_members 64 #$num_procs_per_node
 setenv jedi_walltime_enkf_observer       10
@@ -46,13 +46,13 @@ setenv jedi_enkf_num_procs_per_node_solver 64 #$num_procs_per_node
 setenv jedi_walltime_enkf_solver         20
 
 # Account numbers and queues
-setenv mpas_account  "NMMM0073" 
+setenv mpas_account  "NMMM0074" 
 setenv jedi_account  $mpas_account
 
 set jedi_queue = "main"  #full name: main@chadmin1.ib0.cheyenne.ucar.edu" 
 set jedi_priority = "regular"
 set mpas_queue = "main"
-set mpas_priority = "economy"
+set mpas_priority = "regular"
 
 # Decide what to run (run if true):
 setenv RUN_UNGRIB              false
@@ -88,7 +88,7 @@ setenv   myname      ${SCRIPT_DIR}/driver.csh # Full pathname of this script; ne
 set REL_DIR = /glade/work/schwartz # useful variable for specifying paths; otherwise not used
 
 #setenv   MPAS_JEDI_BUNDLE_DIR  /glade/campaign/mmm/parc/jban/CWA/2025/bundle/basedon_v302 #${REL_DIR}/JEDI/derecho/2025may14_mpas_bundle_rkong
-setenv   MPAS_JEDI_BUNDLE_DIR  /glade/work/schwartz/JEDI/derecho/mpas_bundle_SP_jban_4july2025
+setenv   MPAS_JEDI_BUNDLE_DIR  /glade/work/schwartz/JEDI/derecho/mpas_bundle_SP_jban_24Aug2025
 #setenv   MPAS_JEDI_BUNDLE_DIR  /glade/campaign/mmm/parc/ivette/pandac/codeBuild/mpasBundle_13May2025_IRvarbc_obsErrors_btlim
 setenv   MPAS_CODE_DIR         $MPAS_JEDI_BUNDLE_DIR #${REL_DIR}/MPAS/derecho/MPASv7.0_20210111_mpas_bundle_scaleAwareNewTiedtke_withUpdatedForcing
 # Specify location of the .TBL, .DBL, and 'DATA' files needed by MPAS. They should be consistent with the MPAS build.
@@ -118,7 +118,7 @@ setenv mpas_compiled_within_jedi    true  # (true, false) If true, use the MPAS 
 setenv DETERMINISTIC_MESH   20_2km_small   # EnVar mesh, typically something like 15km_mesh 
 setenv ENSEMBLE_MESH   $DETERMINISTIC_MESH # 15km_mesh   # EnKF/ensemble mesh; could be same as $DETERMINISTIC_MESH
 
-setenv EXPT           expt_tcwa2_ahi+RAD # name of the experiment
+setenv EXPT           expt_tcwa2_ahi+RADAR #expt_tcwa2_RADARonly #name of the experiment
 setenv EXP_DIR_TOP   /glade/derecho/scratch/schwartz/CWA/2025/${DETERMINISTIC_MESH}/${EXPT}  #Directory where most things run
 
 ################################################################################
@@ -172,7 +172,7 @@ setenv  JEDI_YAML_PLUGS      ${SCRIPT_DIR}/yamlPlugs              #Directory wit
 setenv  JEDI_GEOVARS_YAML    ${MPAS_JEDI_BUNDLE_DIR}/code/mpas-bundle/mpas-jedi/test/testinput/namelists/geovars.yaml
 setenv  JEDI_KEPTVARS_YAML   ${MPAS_JEDI_BUNDLE_DIR}/code/mpas-bundle/mpas-jedi/test/testinput/namelists/keptvars.yaml
 setenv  OBSOP_NAME_MAP_YAML  ${MPAS_JEDI_BUNDLE_DIR}/code/mpas-bundle/mpas-jedi/test/testinput/obsop_name_map.yaml
-setenv  RADAR_DA_COEFFS       /glade/derecho/scratch/jban/regional_mpasjedi/jban_letkf_3kmTW_PPRO_nssl_20220624/MPAS-Workflow/config/mpas
+setenv  RADAR_DA_COEFFS       /glade/derecho/scratch/jban/regional_mpasjedi/jban_letkf_2kmTW_tcwa2/MPAS-Workflow/config/mpas
 
 #####################################################################################################
 # These control input into the sequence of scripts. Specifically, specify external models to provide
@@ -434,7 +434,7 @@ while ( $DATE <= $end_init )
 	     -l "select=${num_needed_nodes}:ncpus=${num_procs_per_node}:mpiprocs=${jedi_enkf_num_procs_per_node_observer_members}" \
 	     -l walltime=${jedi_walltime_enkf_observer}:00 ${SCRIPT_DIR}/run_jedi.csh`
 
-	 setenv JEDI_ANALYSIS_TYPE   enkf
+	 setenv JEDI_ANALYSIS_TYPE   enkf_solver
 	 set dependency_condition = "-W depend=afterok:${id_enkf}"
 	#set dependency_condition = ""
 	 set num_needed_nodes = `echo "$jedi_enkf_num_procs_solver / $jedi_enkf_num_procs_per_node_solver" | bc`

@@ -3,7 +3,7 @@
 1b) All anchors in enkf.yaml.csh or variational.yaml.csh are available to .yaml.csh files
     corresponding to observations but are not visible to common.yaml.csh
 1c) Anchors in yaml.csh files corresponding to observations are not available to any other
-    yaml.csh file.
+    yaml.csh file corresponding to observations.
 
 2a) The first four lines of each .yaml.csh file should be:
 #!/bin/csh
@@ -14,19 +14,18 @@ cat >> $output_fname << EOF
 They are all the way to the left (no indentation whatsoever)
 
 2b) The fourth line must use "cat >>" (as opposed to "cat >").  Use of "cat >>" is for appending, rather than overwriting.
+2c) When a .yaml.csh file is called from run_jedi.csh, it needs to be given a filename for the output.  That is what
+   $1 refers to in the third line.  $2 in the second line is the directory where the file will be written.
 
 3) The final line of each .yaml.csh file should be:
 EOF
 
 It is all the way to the left (no indentation whatsoever)
 
-4) Indentation in all .yaml.csh files should be all the way to the left (no indentation whatsoever).  run_jedi.csh will add spaces at the start
-   of lines as needed
+4) Indentation in all .yaml.csh files should BEGIN all the way to the left (no indentation whatsoever).  run_jedi.csh will add spaces at the start
+   of lines as needed.  See below partial example.
 
-5) When a .yaml.csh file is called from run_jedi.csh, it needs to be given a filename for the output.  That is what
-   $1 refers to in the third line.  $2 in the second line is the directory where the file will be written.
-
-6) Partial example:
+5) Partial example:
 
 #!/bin/csh
 cd $2
@@ -38,13 +37,13 @@ cat >> $output_fname << EOF
   obsdatain:
     engine:
       type: H5File
-      obsfile: $inputDataFile #./aircraft_obs_${DATE}.h5
+      obsfile: $inputDataFile
     max frame size: 40000
   obsdataout:
     engine:
       type: H5File
-      obsfile: $outputDataFile #Data/obsout_omb_aircraft.h5
-  simulated variables: [air_temperature, eastward_wind, northward_wind, specific_humidity]
+      obsfile: $outputDataFile
+  simulated variables: [airTemperature, windEastward, windNorthward, specificHumidity]
 obs error: *ObsErrorDiagonal
 obs operator:
   name: VertInterp

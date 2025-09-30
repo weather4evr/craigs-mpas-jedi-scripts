@@ -108,7 +108,7 @@ else if ( $JEDI_ANALYSIS_TYPE =~ *enkf* ) then
    else if ( $JEDI_ANALYSIS_TYPE == enkf_all_at_once ) then
       set dir_prefx = enkf
       set jedi_enkf_num_procs_per_node_observer = $jedi_enkf_num_procs_per_node_solver
-   else if ( $JEDI_ANALYSIS_TYPE == enkf ) then
+   else if ( $JEDI_ANALYSIS_TYPE == enkf_solver ) then
       set dir_prefx = enkf
       set jedi_enkf_num_procs_per_node_observer = $jedi_enkf_num_procs_per_node_observer_mean # for OMA/concatenation...might be wrong
    endif
@@ -366,7 +366,7 @@ if ( $JEDI_ANALYSIS_TYPE == forward_operator_for_forecast_verif ) then
 endif
 
 # For EnKF copy ensemble background to analysis for each member; we'll overwrite the analysis.
-if ( $JEDI_ANALYSIS_TYPE == enkf || $JEDI_ANALYSIS_TYPE == enkf_all_at_once ) then
+if ( $JEDI_ANALYSIS_TYPE == enkf_solver || $JEDI_ANALYSIS_TYPE == enkf_all_at_once ) then
    @ ie = 1
    while ( $ie <= $ENS_SIZE )
       set m3 = `printf %03d $ie` # Each member must have three digits (i.e., 001, 010, 100)
@@ -380,7 +380,7 @@ endif
 # Get observation information,link the observation files, and fill a
 #  YAML file for the observations
 #------------------------------------------------------------------------
-set obs_str      = ""
+#set obs_str      = ""
 set radiance_str = ""
 setenv max_hloc -1 # maximum obs-space localization across all obs types; set correctly below
 if ( $observations_needed =~ *true* || $observations_needed =~ *TRUE* ) then
@@ -402,6 +402,7 @@ if ( $observations_needed =~ *true* || $observations_needed =~ *TRUE* ) then
    set vert_thinning       = `cat $OBS_INFO_FILE | grep -v "#" | cut -d "|" -f 7` # Pa
    set radiance_channels   = `cat $OBS_INFO_FILE | grep -v "#" | cut -d "|" -f 8`
    set radiance_bc         = `cat $OBS_INFO_FILE | grep -v "#" | cut -d "|" -f 9`
+   set assim_or_eval       = `cat $OBS_INFO_FILE | grep -v "#" | cut -d "|" -f 10` # assim or eval
 
    if ( $JEDI_ANALYSIS_TYPE =~ *enkf* ) then
       setenv iterations_list  null
@@ -422,14 +423,15 @@ if ( $observations_needed =~ *true* || $observations_needed =~ *TRUE* ) then
 	 setenv vert_thin    ${vert_thinning[$i]}
 	 setenv channels     ${radiance_channels[$i]}
 	 setenv varBC        ${radiance_bc[$i]}
+	 setenv assimOrEval  ${assim_or_eval[$i]}
 	 if ( $JEDI_ANALYSIS_TYPE == enkf_prior_members ) then
 	   #ln -sf ${EXP_DIR_TOP}/${DATE}/enkf/ens_mean/dbOut/obsout_omb_${inst}.h5 $inputDataFile
 	    ln -sf ${EXP_DIR_TOP}/${DATE}/enkf/ens_mean/dbOut/obsout_omb_${inst}_1st_pass.h5 $inputDataFile
 	    setenv bgchk_thresh 999999
-	    setenv PreQC_maxvalue 3 #0
+	  ##setenv PreQC_maxvalue 3 #0
 	   #setenv horiz_thin -1
 	   #setenv vert_thin  -1
-	 else if ( $JEDI_ANALYSIS_TYPE == enkf ) then
+	 else if ( $JEDI_ANALYSIS_TYPE == enkf_solver ) then
 	    ln -sf ${EXP_DIR_TOP}/${DATE}/enkf/ens_mean/dbOut/obsout_omb_${inst}.h5 ./${inst}_obs_${DATE}_orig.h5 # save a copy
 	    cp ${EXP_DIR_TOP}/${DATE}/enkf/ens_mean/dbOut/obsout_omb_${inst}.h5 $inputDataFile
 	    foreach ie ( `seq 1 1 $ENS_SIZE` )
@@ -451,11 +453,11 @@ if ( $observations_needed =~ *true* || $observations_needed =~ *TRUE* ) then
 
 	    setenv outputDataFile $inputDataFile # EnKF in solver mode looks for $outputDataFile to read in
 	    setenv bgchk_thresh 999999
-	    setenv PreQC_maxvalue 3 #0
+	   #setenv PreQC_maxvalue 3 #0
 	 else
 	    ln -sf ${THIS_OB_DIR}/${inst}_obs_${DATE}.h5 $inputDataFile
 	    setenv bgchk_thresh ${outlier_thresholds[$i]}
-	    setenv PreQC_maxvalue 3
+	   #setenv PreQC_maxvalue 3
 	 endif
 	 if ( $vloc_unit == pressure ) then
 	    setenv applyLogTransformation true
@@ -467,17 +469,22 @@ if ( $observations_needed =~ *true* || $observations_needed =~ *TRUE* ) then
 	    echo "vloc_unit = $vloc_unit invalid. should be either height or pressure"
 	    exit 11
 	 endif
-	 if ( $hloc > $max_hloc ) setenv max_hloc $hloc # largest horiz. localization, for EnKF obs distribution
-	 ${JEDI_YAML_PLUGS}/${inst}.yaml.csh $obs_yaml $JEDI_RUN_DIR   # 'execute' the file to fill-in variables and add to $obs_yaml
-	 # add localization yaml.csh
-         rm -f ./localization.yaml
-         if ( $JEDI_ANALYSIS_TYPE =~ *enkf* ) then
-	    ${JEDI_YAML_PLUGS}/obsSpaceLocalization.yaml.csh ./localization.yaml $JEDI_RUN_DIR
-            sed -i "s/^/  /" ./localization.yaml # add 2 spaces at the start of each line
-            cat ./localization.yaml >> $obs_yaml
-         endif
+	 # If we're doing the enkf analysies (enkf_solver), but assimOrEval == eval, we don't want to use it in the 
+	 #  analysis so don't include the ob in the YAML file. For prior forward operators calculations, always
+	 #  include the ob in the YAML.
+	 if ( $JEDI_ANALYSIS_TYPE != enkf_solver || ($JEDI_ANALYSIS_TYPE == enkf_solver && $assimOrEval == assim) ) then
+	    if ( $hloc > $max_hloc ) setenv max_hloc $hloc # largest horiz. localization, for EnKF obs distribution
+	    ${JEDI_YAML_PLUGS}/${inst}.yaml.csh $obs_yaml $JEDI_RUN_DIR   # 'execute' the file to fill-in variables and add to $obs_yaml
+	    # add localization yaml.csh
+	    rm -f ./localization.yaml
+	    if ( $JEDI_ANALYSIS_TYPE =~ *enkf* ) then
+	       ${JEDI_YAML_PLUGS}/obsSpaceLocalization.yaml.csh ./localization.yaml $JEDI_RUN_DIR
+	       sed -i "s/^/  /" ./localization.yaml # add 2 spaces at the start of each line
+	       cat ./localization.yaml >> $obs_yaml
+	    endif
+	 endif
 	 @ ob ++ 
-	 set obs_str = "${obs_str}'${inst}',"
+	#set obs_str = "${obs_str}'${inst}',"
 
 	 # if $channels is NOT -1, it's a radiance ob
 	 if ( $channels != -1 ) set radiance_str = "${radiance_str}'${inst}',"
@@ -495,8 +502,8 @@ if ( $observations_needed =~ *true* || $observations_needed =~ *TRUE* ) then
 				     ${EXP_DIR_TOP}/${PREV_DATE_VARBC}/jedi_ens_mean )
 	       foreach LAST_RAD_BC_DIR ( $possible_dirs )
 		  @ n = 0
-		  if ( -e   ${LAST_RAD_BC_DIR}/satbias_${inst}_out.nc4 ) then
-		     ln -sf ${LAST_RAD_BC_DIR}/satbias_${inst}_out.nc4  ./satbias_${inst}.nc4
+		  if ( -e   ${LAST_RAD_BC_DIR}/satbias_${inst}_out.h5 ) then
+		     ln -sf ${LAST_RAD_BC_DIR}/satbias_${inst}_out.h5  ./satbias_${inst}.h5
 		     @ n ++
 		  endif
 		  if ( $use_static_bias_correction_covariance =~ *true* || $use_static_bias_correction_covariance =~ *TRUE* ) then
@@ -504,8 +511,8 @@ if ( $observations_needed =~ *true* || $observations_needed =~ *TRUE* ) then
 		  else
 		     set bias_covariance_dir = $LAST_RAD_BC_DIR
 		  endif
-		  if ( -e   ${bias_covariance_dir}/satbias_cov_${inst}_out.nc4 ) then
-		     ln -sf ${bias_covariance_dir}/satbias_cov_${inst}_out.nc4 ./satbias_cov_${inst}.nc4
+		  if ( -e   ${bias_covariance_dir}/satbias_cov_${inst}_out.h5 ) then
+		     ln -sf ${bias_covariance_dir}/satbias_cov_${inst}_out.h5 ./satbias_cov_${inst}.h5
 		     @ n ++
 		  endif
 		  # For each sensor, we have a file for bias correction and preconditioning
@@ -587,7 +594,7 @@ if ( $MPAS_REGIONAL =~ *true* || $MPAS_REGIONAL =~ *TRUE* ) then
 else
    setenv reduce_obs_space   globalReduceObsSpace
 endif
-if ( $JEDI_ANALYSIS_TYPE == enkf ) then
+if ( $JEDI_ANALYSIS_TYPE == enkf_solver ) then
    setenv obsDistribution  HaloDistribution
 else
    setenv obsDistribution  RoundRobinDistribution # in common.yaml.csh, so we need, but maybe only used for EnKF...
@@ -617,10 +624,11 @@ else if ( $JEDI_ANALYSIS_TYPE =~ *enkf* ) then
 
       if ( $JEDI_ANALYSIS_TYPE == enkf_prior_mean ) then
 	 setenv SingleMemberNumber 0
+	 setenv enkf_type LETKF # force LETKF analysis for prior mean to not produce H(x) for modulated members
       else if ( $JEDI_ANALYSIS_TYPE == enkf_prior_members ) then
 	 setenv SingleMemberNumber $member
       endif
-   else if ( $JEDI_ANALYSIS_TYPE == enkf ) then
+   else if ( $JEDI_ANALYSIS_TYPE == enkf_solver ) then
       setenv letkf_stage  asSolver
       setenv SaveSingleMember false
       setenv SingleMemberNumber 0 # shouldn't matter
@@ -635,7 +643,7 @@ else if ( $JEDI_ANALYSIS_TYPE =~ *enkf* ) then
    sed -i "s/^/  /" $obs_yaml # add 2 spaces at the start of each line for the observations
    cat $obs_yaml >> $full_yaml_file # add observations to $full_yaml_file
 
-   if ( $JEDI_ANALYSIS_TYPE == enkf ) then
+   if ( $JEDI_ANALYSIS_TYPE == enkf_solver ) then
       sed -i "s/*ObsDataIn/*ObsDataOut/g" $full_yaml_file
       sed -i '/ obsdataout/d' $full_yaml_file # note the space in front of obsdata out; this deletes the whole line
    endif
@@ -694,7 +702,7 @@ endif
 # Make namelist for program to concatenate all JEDI/UFO output files 
 # from individual processors into one file
 # Helpful to do up here, so we can call the program in multiple places
-#  If you want to remove the final comma: "$string" | sed -e "s/  /,/g"
+#  If you want to remove the final comma: echo "$string" | sed -e "s/  /,/g"
 #obs_platforms = ${conv_sensor_str} !'gnssro',${radiance_sensor_str}
 #obs_platforms = 'sondes','aircraft','satwind','gnssro','sfc',${radiance_sensor_str}
 #------------------------------------------------------------------
@@ -802,6 +810,7 @@ if ( $JEDI_ANALYSIS_TYPE =~ *enkf_prior* ) then
       #   this is to replace the line after Background Check at the same indentation level with threshold: 999999
       sed -i '/Background Check/{n;s/^\( *\).*/\1threshold: 999999/}' observer.yaml
       sed -i '/Gaussian Thinning/{N;d;}' observer.yaml
+     #sed -i "s/.*save single member for observer.*/  save single member for observer: false/g" ./observer.yaml # disable single member to compute H(x) for all members (note 2 spaces at start)
 
       # Run MPAS-JEDI again
       source $jedi_environment_file
@@ -841,7 +850,7 @@ if ( $JEDI_ANALYSIS_TYPE =~ *enkf_prior* ) then
       end
    endif
 
-else if ( $JEDI_ANALYSIS_TYPE == enkf ) then
+else if ( $JEDI_ANALYSIS_TYPE == enkf_solver ) then
 
   #$JEDI_YAML_TEMPLATE enkf $JEDI_RUN_DIR
    mv $full_yaml_file ./solver.yaml
@@ -940,6 +949,7 @@ if ( $radiance_str != "" ) then
        # exit 14
       else
          rm -f ${jedi_output_dir}/${prefx}*_????.nc4
+         rm -f ${jedi_output_dir}/${prefx}*_????.h5
       endif
    end
 endif
@@ -949,8 +959,8 @@ endif
 #   But these output files still need to be there 
 #   so the next cycle finds "bias correction files" and doesn't fail
 if ( $JEDI_ANALYSIS_TYPE == envar ) then
-   if ( ! -e satbias_abi_g16_out.nc4 )      touch -f satbias_abi_g16_out.nc4
-   if ( ! -e satbias_cov_abi_g16_out.nc4 )  touch -f satbias_cov_abi_g16_out.nc4
+   if ( ! -e satbias_abi_g16_out.h5 )      touch -f satbias_abi_g16_out.h5
+   if ( ! -e satbias_cov_abi_g16_out.h5 )  touch -f satbias_cov_abi_g16_out.h5
 endif
 
 #---------
