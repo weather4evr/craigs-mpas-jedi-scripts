@@ -519,9 +519,10 @@ if ( $observations_needed =~ *true* || $observations_needed =~ *TRUE* ) then
 		  # So that's why we look for 2 files
 		  if ( $n == 2 ) then
 		     set found_it = true
-		     break 2 # break 2 means get out of 2 levels of loops
+		     break # break out of loop over $LAST_RAD_BC_DIR
 		  endif
 	       end # loop for LAST_RAD_BC_DIR
+	       if ( $found_it == true ) break # break out of loop over $offset
 	    end # loop for offset
 	    if ( $found_it == false ) then
 	       echo "Missing satbias_out file for ${inst}.  Exit"
