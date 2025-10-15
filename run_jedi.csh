@@ -101,6 +101,7 @@ else if ( $JEDI_ANALYSIS_TYPE =~ *enkf* ) then
    if ( $JEDI_ANALYSIS_TYPE == enkf_prior_mean ) then
       set dir_prefx = ens_mean
       set jedi_enkf_num_procs_per_node_observer = $jedi_enkf_num_procs_per_node_observer_mean
+      setenv linear_forward_operator false # we want a nonlinear HofX for the ensemble mean prior
    else if ( $JEDI_ANALYSIS_TYPE == enkf_prior_members ) then
       set dir_prefx = ens # becomes member-dependent later
       set member = $PBS_ARRAY_INDEX # #PBS with "-J" flag (PBS pro)
@@ -108,9 +109,10 @@ else if ( $JEDI_ANALYSIS_TYPE =~ *enkf* ) then
    else if ( $JEDI_ANALYSIS_TYPE == enkf_all_at_once ) then
       set dir_prefx = enkf
       set jedi_enkf_num_procs_per_node_observer = $jedi_enkf_num_procs_per_node_solver
+      setenv linear_forward_operator false # use nonlinear HofX if processing all members simultaneously
    else if ( $JEDI_ANALYSIS_TYPE == enkf_solver ) then
       set dir_prefx = enkf
-      set jedi_enkf_num_procs_per_node_observer = $jedi_enkf_num_procs_per_node_observer_mean # for OMA/concatenation...might be wrong
+      set jedi_enkf_num_procs_per_node_observer = $jedi_enkf_num_procs_per_node_observer_mean # for OMA
    endif
 
 else if ( $JEDI_ANALYSIS_TYPE == bump ) then
@@ -853,7 +855,6 @@ if ( $JEDI_ANALYSIS_TYPE =~ *enkf_prior* ) then
 
 else if ( $JEDI_ANALYSIS_TYPE == enkf_solver ) then
 
-  #$JEDI_YAML_TEMPLATE enkf $JEDI_RUN_DIR
    mv $full_yaml_file ./solver.yaml
    $run_cmd_jedi -n $jedi_enkf_num_procs_solver -ppn $jedi_enkf_num_procs_per_node_solver $jedi_exec ./solver.yaml  ./solver.log 
    if ( $status != 0 ) then
@@ -867,25 +868,38 @@ else if ( $JEDI_ANALYSIS_TYPE == enkf_solver ) then
    if ( $do_oma =~ *true* || $do_oma =~ *TRUE* ) then
       set omaDir = ./dbAna
       mkdir -p $omaDir
-     #cp ./observer.yaml ./oma.yaml
       cp ${EXP_DIR_TOP}/${DATE}/enkf/ens_mean/observer.yaml ./oma.yaml
       # Replace {jedi_output_dir}/obsout_omb with ${omaDir}/obsout_oma; use "|" as sed delimiter because of "/" characters in strings
       # Also replace jedi_output_dir with $omaDir for geovals and ydiag files for radiances
       sed -i "s|${jedi_output_dir}/obsout_omb|${omaDir}/obsout_oma|g" oma.yaml
       sed -i "s|${jedi_output_dir}|${omaDir}|g" oma.yaml
+      sed -i "s/.*save single member for observer.*/  save single member for observer: false/g" ./oma.yaml # disable single member to compute H(x) for all members (note 2 spaces at start)
 
-      rm -f ./mpas_en001.nc
-      ln -sf ${EXP_DIR_TOP}/${DATE}/mpas_prior_ensmean.nc ./mpas_en001.nc
-
-#     @ ie = 1
-#     while ( $ie <= $ENS_SIZE )
-      #  set m3 = `printf %03d $ie` # Each member must have three digits (i.e., 001, 010, 100)
-      #  mv ./mpas_en${m3}.nc ./mpas_bak${m3}.nc # rename the background files
-      #  ln -sf ./analysis.${mpas_date}_en${m3}.nc ./mpas_en${m3}.nc # YAML looks for ./mpas_en${m3}.nc
-      #  @ ie ++
-     #end
+      @ ie = 1
+      while ( $ie <= $ENS_SIZE )
+         set m3 = `printf %03d $ie` # Each member must have three digits (i.e., 001, 010, 100)
+         mv ./mpas_en${m3}.nc ./mpas_bak${m3}.nc # rename the background files
+         ln -sf ./analysis.${mpas_date}_en${m3}.nc ./mpas_en${m3}.nc # YAML looks for ./mpas_en${m3}.nc
+         @ ie ++
+      end
       $run_cmd_jedi -n $jedi_enkf_num_procs_observer -ppn $jedi_enkf_num_procs_per_node_observer $jedi_exec ./oma.yaml  ./oma.log 
-   endif
+
+      # source main environment so we can use ncks
+      source $default_environment_file # From driver
+      unsetenv GFORTRAN_CONVERT_UNIT F_UFMTENDIAN  OMP_NUM_THREADS
+
+      # Strip out modulated members in the OMA files
+      foreach inst ( $instruments )
+	 set fname = ${omaDir}/obsout_oma_${inst}.h5
+	 if ( -e $fname ) then
+	    set groups = `ncdump -h $fname | grep group: | grep -E hofxm | cut -d " " -f2` # returns hofxm0* as array
+	    set ncks_str = `echo $groups | sed -e "s/ /,/g"` # replaces all the spaces with a comma (e.g., hofxm0_10_2,hofxm0_10_1)
+	    set fname1 = ./tmp.h5
+	    ncks -O --no_abc -C -h -x -g $ncks_str $fname $fname1
+	    mv $fname1 $fname
+	 endif
+      end
+   endif # endif do_oma = true
 
 else if ( $JEDI_ANALYSIS_TYPE == enkf_all_at_once ) then
    # first run EnKF in "observer" mode
@@ -915,6 +929,24 @@ else if ( $JEDI_ANALYSIS_TYPE == enkf_all_at_once ) then
    # now run EnKF to get OMA statistics
    # all we need to do is run LETKF again in observer mode, but point to the analysis files
    # also need to put the output in a unique directory
+   if ( $do_oma =~ *true* || $do_oma =~ *TRUE* ) then
+      set omaDir = ./dbAna
+      mkdir -p $omaDir
+      cp ./observer.yaml ./oma.yaml
+      # Replace {jedi_output_dir}/obsout_omb with ${omaDir}/obsout_oma; use "|" as sed delimiter because of "/" characters in strings
+      # Also replace jedi_output_dir with $omaDir for geovals and ydiag files for radiances
+      sed -i "s|${jedi_output_dir}/obsout_omb|${omaDir}/obsout_oma|g" oma.yaml
+      sed -i "s|${jedi_output_dir}|${omaDir}|g" oma.yaml
+
+      @ ie = 1
+      while ( $ie <= $ENS_SIZE )
+         set m3 = `printf %03d $ie` # Each member must have three digits (i.e., 001, 010, 100)
+         mv ./mpas_en${m3}.nc ./mpas_bak${m3}.nc # rename the background files
+         ln -sf ./analysis.${mpas_date}_en${m3}.nc ./mpas_en${m3}.nc # YAML looks for ./mpas_en${m3}.nc
+         @ ie ++
+      end
+      $run_cmd_jedi -n $jedi_enkf_num_procs_observer -ppn $jedi_enkf_num_procs_per_node_observer $jedi_exec ./oma.yaml  ./oma.log 
+   endif
 
 else # envar, bump
    $run_cmd_jedi -n $jedi_variational_num_procs -ppn $jedi_variational_num_procs_per_node $jedi_exec $full_yaml_file  ./da.log 
@@ -940,7 +972,6 @@ unsetenv GFORTRAN_CONVERT_UNIT F_UFMTENDIAN  OMP_NUM_THREADS
 #  Can also use "./netcdf-concat" program through jedi rapids  (possibly in /glade/u/home/schwartz/.local/bin/netcdf-concat)
 #if ( `grep -i "create_multiple_files_" ./da.log | wc -l` > 0 ) then # possible that just one file was made...if so, no need to concatenate
 # touch -f ./JEDI_INTERNAL_CONCATENATION
-#if ( 1 == 2 ) then # strange things happening, and not correct; number of procs should depend on JEDI application
 if ( $radiance_str != "" ) then
    foreach prefx ( geovals ydiag )
       ln -sf ./input_${prefx}.nml ./input.nml # program looks for ./input.nml
@@ -954,7 +985,6 @@ if ( $radiance_str != "" ) then
       endif
    end
 endif
-#endif
 
 # We might not be using bias correction for abi_16
 #   But these output files still need to be there 
