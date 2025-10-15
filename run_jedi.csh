@@ -801,7 +801,7 @@ if ( $JEDI_ANALYSIS_TYPE =~ *enkf_prior* ) then
 	    ln -sf $fname ./${inst}_obs_${DATE}.h5
 	 endif
       end
-      deactivate npl
+      conda deactivate npl
 
       # Need to run JEDI again, using the files we just produced as our OBSERVATION files
       # The ensemble member files will use these files as observations, so we also need to use them for the ensemble mean
