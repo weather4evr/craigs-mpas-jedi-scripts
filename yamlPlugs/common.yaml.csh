@@ -58,7 +58,7 @@ _cloudy crtm: &cloudyCRTMObsOperator
   SurfaceWindGeoVars: uv
   Absorbers: [H2O, O3]
   Clouds: [Water, Ice, Rain, Snow, Graupel]
-  Cloud_Seeding: true
+  Cloud_Seeding: false
   linear obs operator:
     Absorbers: [H2O]
     Clouds: [Water, Ice, Rain, Snow, Graupel]
