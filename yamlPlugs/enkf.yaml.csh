@@ -60,7 +60,7 @@ driver: *${letkf_stage} #*asObserver or *asSolver
 
 local ensemble DA:
   solver: $enkf_type # LETKF
-  use linear observer: False
+  use linear observer: $linear_forward_operator #False
   vertical localization: # only used by GETKF solver
     fraction of retained variance: 0.95
     lengthscale: $vertloc_length_model_space # meters if height 4000.0

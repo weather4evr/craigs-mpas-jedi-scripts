@@ -37,8 +37,8 @@ setenv jedi_walltime_variational            10
 setenv jedi_enkf_num_procs_observer_mean      512   # JEDI EnKF (LETKF/GETKF)
 setenv jedi_enkf_num_procs_observer_members   512 #256   
 setenv jedi_enkf_num_procs_per_node_observer_mean 64
-setenv jedi_enkf_num_procs_per_node_observer_members 64 #$num_procs_per_node
-setenv jedi_walltime_enkf_observer       10
+setenv jedi_enkf_num_procs_per_node_observer_members 128 #$num_procs_per_node
+setenv jedi_walltime_enkf_observer       8
 
    # LETKF "solver" ; these are used for just solver and for everything if all_at_once == true
 setenv jedi_enkf_num_procs_solver        1024  # JEDI EnKF (LETKF/GETKF)
@@ -46,7 +46,7 @@ setenv jedi_enkf_num_procs_per_node_solver 64 #$num_procs_per_node
 setenv jedi_walltime_enkf_solver         20
 
 # Account numbers and queues
-setenv mpas_account  "NMMM0074" 
+setenv mpas_account  "NMMM0073" 
 setenv jedi_account  $mpas_account
 
 set jedi_queue = "main"  #full name: main@chadmin1.ib0.cheyenne.ucar.edu" 
@@ -63,7 +63,7 @@ setenv RUN_MPAS_INITIALIZE     false
 
 setenv RUN_JEDI_ENKF   true
    setenv all_at_once  false # if true, run the EnKF "all at once", with just one execution of run_jedi.csh
-   setenv do_oma       false #  currently not working; keep false
+   setenv do_oma       true #  if true, compute OMA after the EnKF analysis
 
 setenv RUN_JEDI_EnVar  false
 
@@ -118,7 +118,7 @@ setenv mpas_compiled_within_jedi    true  # (true, false) If true, use the MPAS 
 setenv DETERMINISTIC_MESH   20_2km_small   # EnVar mesh, typically something like 15km_mesh 
 setenv ENSEMBLE_MESH   $DETERMINISTIC_MESH # 15km_mesh   # EnKF/ensemble mesh; could be same as $DETERMINISTIC_MESH
 
-setenv EXPT           expt_tcwa2_ahi+RADAR #expt_tcwa2_RADARonly #name of the experiment
+setenv EXPT           expt_tcwa2_ahi+RADAR_linearHofX #expt_tcwa2_ahi+RADAR #expt_tcwa2_RADARonly #name of the experiment
 setenv EXP_DIR_TOP   /glade/derecho/scratch/schwartz/CWA/2025/${DETERMINISTIC_MESH}/${EXPT}  #Directory where most things run
 
 ################################################################################
@@ -301,6 +301,7 @@ setenv vertloc_coord_model_space       "height"  # ("height", "pressure" ); pres
 setenv vertloc_coord_model_space_bump  "height"  # ("height", "scaleheight" ); for BUMP YAML
 setenv rtps_inflation_factor    0.9
 setenv rtpp_inflation_factor    0.0
+setenv linear_forward_operator  true # true or false; if true, apply linear HofX to LETKF/GETKF ensemble members, if false, apply nonlinear HofX.
 
 # Where does EnVar get its background from?  Options: prior_ens_mean,cycle,cold_start
 # Usually set to cycle, which means cycling deterministic EnVar circuit.
@@ -343,7 +344,7 @@ foreach f ( $ff )
    endif
 end
 
-# Make file with main models and then load them
+# Make file with main modules and then load them
 echo "module --force purge ; module restore default" > $default_environment_file
 source $default_environment_file
 
@@ -434,6 +435,13 @@ while ( $DATE <= $end_init )
 	     -l "select=${num_needed_nodes}:ncpus=${num_procs_per_node}:mpiprocs=${jedi_enkf_num_procs_per_node_observer_members}" \
 	     -l walltime=${jedi_walltime_enkf_observer}:00 ${SCRIPT_DIR}/run_jedi.csh`
 
+	 setenv jedi_enkf_num_procs_observer      $jedi_enkf_num_procs_observer_mean  # For  possible OMA calculations
+         if ( $do_oma =~ *true* || $do_oma =~ *TRUE* ) then
+            if ( $jedi_enkf_num_procs_observer > $jedi_enkf_num_procs_solver ) then
+               echo "jedi_enkf_num_procs_observer > jedi_enkf_num_procs_solver, which is not allowed when do_ama = true"
+	       exit
+	    endif
+         endif
 	 setenv JEDI_ANALYSIS_TYPE   enkf_solver
 	 set dependency_condition = "-W depend=afterok:${id_enkf}"
 	#set dependency_condition = ""
