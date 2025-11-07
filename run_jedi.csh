@@ -340,7 +340,7 @@ end
 if ( $config_microp_scheme =~ *thompson* ) then # Make sure we need Thompson microphysics tables
   #set fnames = `ls ${MPAS_JEDI_BUNDLE_DIR}/build/mpas-bundle/MPAS/core_atmosphere/MP_THOMPSON*`
    set fnames = `find $MPAS_JEDI_BUNDLE_DIR -name "MP_THOMPSON*"`
-   if ( $#fnames != 4 ) then
+   if ( $#fnames < 4 ) then
       touch -f ./MISSING_THOMPSON_MP_TABLES
       echo "There must be 4 files beginning with MP_THOMPSON in ${MPAS_JEDI_BUNDLE_DIR}/build/.../MPAS/core_atmosphere"
       echo "But there are $#fnames files instead."

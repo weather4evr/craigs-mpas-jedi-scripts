@@ -38,7 +38,7 @@ setenv jedi_enkf_num_procs_observer_mean      512   # JEDI EnKF (LETKF/GETKF)
 setenv jedi_enkf_num_procs_observer_members   512 #256   
 setenv jedi_enkf_num_procs_per_node_observer_mean 64
 setenv jedi_enkf_num_procs_per_node_observer_members 128 #$num_procs_per_node
-setenv jedi_walltime_enkf_observer       8
+setenv jedi_walltime_enkf_observer       9
 
    # LETKF "solver" ; these are used for just solver and for everything if all_at_once == true
 setenv jedi_enkf_num_procs_solver        1024  # JEDI EnKF (LETKF/GETKF)
@@ -118,7 +118,7 @@ setenv mpas_compiled_within_jedi    true  # (true, false) If true, use the MPAS 
 setenv DETERMINISTIC_MESH   20_2km_small   # EnVar mesh, typically something like 15km_mesh 
 setenv ENSEMBLE_MESH   $DETERMINISTIC_MESH # 15km_mesh   # EnKF/ensemble mesh; could be same as $DETERMINISTIC_MESH
 
-setenv EXPT           expt_tcwa2_ahi+RADAR_linearHofX #expt_tcwa2_ahi+RADAR #expt_tcwa2_RADARonly #name of the experiment
+setenv EXPT           expt_tcwa2_ahiOnly #expt_tcwa2_RADARonly_vertInterp #expt_tcwa2_ahi+RADAR_PPRO       #expt_tcwa2_ahi+RADAR #expt_tcwa2_RADARonly #name of the experiment
 setenv EXP_DIR_TOP   /glade/derecho/scratch/schwartz/CWA/2025/${DETERMINISTIC_MESH}/${EXPT}  #Directory where most things run
 
 ################################################################################
@@ -137,7 +137,7 @@ setenv EXP_DIR_TOP   /glade/derecho/scratch/schwartz/CWA/2025/${DETERMINISTIC_ME
 ################################################################################
 
 setenv FIRST_DATE    202206221800 # Fixed for a set of experiments. First date of an MPAS forecast (cold-start forecast initialized at this time to start things off).
-setenv LAST_DATE     202206291100 # Fixed for a set of experiments. The last date for an analysis or forecast.
+setenv LAST_DATE     202206242100 # Fixed for a set of experiments. The last date for an analysis or forecast.
 
 setenv start_init    $start_init # controls the cycling in below loop. should be >= $FIRST_DATE
 setenv end_init      $start_init
@@ -295,13 +295,13 @@ setenv ob_time_window   30  # Minutes...the number of minutes on either side of 
 # JEDI EnKF/Envar settings
 # ----------------------
 setenv enkf_type   GETKF      # Either LETKF or GETKF, in capital letters. If GETKF, vertical localization is in model space. Horizontal localization in obs-space for both LETKF and GETKF (in model space for EnVar).
-setenv corrlength_model_space 160 # Horizontal Gaspari-Cohn distance at which increment forced to zero (km) for model-space localization in EnVar; obs-space localizations (for all EnKFs) defined in $OBS_INFO_FILE
-setenv vertloc_length_model_space  4000.0  # Vertical Gaspari-Cohn distance at which increment forced to zero for model-space localization. Can be scale-height or meters. For EnVar and GETKF.
+setenv corrlength_model_space 160 # Horizontal Gaspari-Cohn distance at which increment forced to zero (km) for model-space horizontal localization in EnVar; obs-space horizontal localizations for all EnKFs defined in $OBS_INFO_FILE
+setenv vertloc_length_model_space  4000.0  # Vertical Gaspari-Cohn distance at which increment forced to zero for model-space vertical localization. Can be scale-height or meters. For EnVar and GETKF. Defined in $OBS_INFO file for LETKF.
 setenv vertloc_coord_model_space       "height"  # ("height", "pressure" ); pressure really means scale-height; used in GETKF YAML
 setenv vertloc_coord_model_space_bump  "height"  # ("height", "scaleheight" ); for BUMP YAML
 setenv rtps_inflation_factor    0.9
 setenv rtpp_inflation_factor    0.0
-setenv linear_forward_operator  true # true or false; if true, apply linear HofX to LETKF/GETKF ensemble members, if false, apply nonlinear HofX.
+setenv linear_forward_operator  false # true or false; if true, apply linear HofX to LETKF/GETKF ensemble members, if false, apply nonlinear HofX.
 
 # Where does EnVar get its background from?  Options: prior_ens_mean,cycle,cold_start
 # Usually set to cycle, which means cycling deterministic EnVar circuit.

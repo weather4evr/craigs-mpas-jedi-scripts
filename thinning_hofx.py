@@ -5,7 +5,7 @@ import netCDF4 as nc4
 
 #============================================================================
 
-def calc_dimensions(ncin, ncout):
+def calc_dimensions(ncin): #, ncout):
    # Calculate how many locations are not thinned.
    igroups = ncin.groups
    for grpname, group in igroups.items():
@@ -73,7 +73,7 @@ IFILE = nc4.Dataset(hofxfile, 'r') # input file
 OFILE = nc4.Dataset(outfile, 'w', format='NETCDF4') # outputfile
 
 # Determine number of thinned data
-valid_indices = calc_dimensions(IFILE, OFILE) # figure out the number of points with appropriate QC
+valid_indices = calc_dimensions(IFILE) #, OFILE) # figure out the number of points with appropriate QC
 new_locs = len(valid_indices)
 print('thinned data has size: %d\n' %(new_locs))
 
