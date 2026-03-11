@@ -329,7 +329,7 @@ set fnames = stream_list.atmosphere.{analysis,background,control,ensemble}
 foreach fname ( $fnames ) 
    set f = `find $MPAS_JEDI_BUNDLE_DIR -name $fname -type f`
    if ( $#f == 0 ) then
-      echo "$f is missing. Check $MPAS_JEDI_BUNDLE_DIR for it."
+      echo "$fname is missing. Check $MPAS_JEDI_BUNDLE_DIR for it."
       exit
    else
       ln -sf $f .
@@ -463,7 +463,7 @@ if ( $observations_needed =~ *true* || $observations_needed =~ *TRUE* ) then
 	 endif
 	 if ( $vloc_unit == pressure ) then
 	    setenv applyLogTransformation true
-	    setenv vloc         ${vert_localizations[$i]
+	    setenv vloc         ${vert_localizations[$i]}
 	 else if ( $vloc_unit == height ) then
 	    setenv vloc         `echo "${vert_localizations[$i]} * 1000" | bc -l`  # km --> meters
 	    setenv applyLogTransformation false

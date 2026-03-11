@@ -19,6 +19,6 @@
 # --------------------------------------------------------------------------------------------------------
 #aircraft           | 1600 |  4   | height   |   5   |  30.0   |  2500.0  |  -1            | -1 | assim |
 #amsua_n19-cld      | 1600 |  4   | height   |   5   |  30.0   |  -1      |  5,6,7,8,9     | T  | assim |
-CWB_dualpol        | 8    |  2   | height   |  20   |  2.0    |  -1      |  -1            | -1 |  assim |
-CWB_rw             | 36   |  3   | height   |   8   |  2.0    |  -1      |  -1            | -1 |  assim |
+CWB_dualpol        | 8    |  2   | height   |   20  |  2.0    |  -1      |  -1            | -1 |  eval |
+CWB_rw             | 36   |  3   | height   |   8   |  2.0    |  -1      |  -1            | -1 |  eval |
 ahi_himawari8      | 12   |  8   | height   |   3   |  4.0    |  -1      |  8,9,10        | F  |  assim |
