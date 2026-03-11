@@ -16,8 +16,10 @@
 # This script runs MPAS initialization
 # -------------------------------------
 set DATE = $DATE # from driver.csh; ccyymmddhhnn (e.g., 202305231200)
-set START_DATE_MPAS = `${TOOL_DIR}/da_advance_time.exe $DATE 0 -w`
-set END_DATE_MPAS   = `${TOOL_DIR}/da_advance_time.exe $DATE ${FCST_RANGE}m -w` # Used for regional MPAS for LBCs
+set yyyymmdd = `echo "${DATE}" | cut -c 1-8`
+set hhmin = `echo "${DATE}" | cut -c 9-12`
+set START_DATE_MPAS = `date -d "${yyyymmdd} ${hhmin}" +%Y-%m-%d_%H:%M:%S` # WRF format
+set END_DATE_MPAS   = `date -d "${yyyymmdd} ${hhmin} + ${FCST_RANGE} minutes" +%Y-%m-%d_%H:%M:%S` # WRF format; used for regional MPAS for LBCs
 set sdate = `echo "$START_DATE_MPAS" | cut -c 1-13` # e.g., 2025-05-23_00
 
 ########

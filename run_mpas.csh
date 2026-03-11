@@ -15,12 +15,15 @@
 #PBS -V 
 #
 set DATE = $DATE   # From driver; ccyymmddhhnn
+set yyyymmdd = `echo "$DATE" | cut -c 1-8` # yyyymmdd of $DATE
 set hh = `echo "$DATE" | cut -c 9-10` # hour of $DATE
 set minutes = `echo "$DATE" | cut -c 11-12` # minutes of $DATE
-set mpas_date = `${TOOL_DIR}/da_advance_time.exe ${DATE} 0 -f ccyy-mm-dd_hh.nn.ss`
+set mpas_date   = `date -d "${yyyymmdd} ${hh}${minutes}" +%Y-%m-%d_%H.%M.%S` # MPAS format
 
-set PREV_DATE = `${TOOL_DIR}/da_advance_time.exe ${DATE} -${CYCLE_PERIOD}m -f ccyymmddhhnn`
-set prev_mpas_date = `$TOOL_DIR/da_advance_time.exe $PREV_DATE 0 -f ccyy-mm-dd_hh.nn.ss`
+set PREV_DATE   = `date -d "${yyyymmdd} ${hh}${minutes} - ${CYCLE_PERIOD} minutes" +%Y%m%d%H%M`
+set pyyyymmdd  = `echo "${PREV_DATE}" | cut -c 1-8`
+set phhmin = `echo "${PREV_DATE}" | cut -c 9-12`
+set prev_mpas_date = `date -d "${pyyyymmdd} ${phhmin}" +%Y-%m-%d_%H.%M.%S` # MPAS format
 set ENS_SIZE = $ENS_SIZE  # From driver
 
 if ( $RUN_STAGE == next_cycle ) then
@@ -328,7 +331,7 @@ EOF
       set offsets = ( `seq 0 1 360`) #minutes; don't go back more than 6 hours
       set lbc_dir = "missing"
       foreach offset ( $offsets ) 
-         set this_date = `$TOOL_DIR/da_advance_time.exe $DATE -${offset}m -f ccyymmddhhnn`
+         set this_date   = `date -d "${yyyymmdd} ${hh}${minutes} - ${offset} minutes" +%Y%m%d%H%M`
 	 if ( $MPAS_STAGE == ensemble ) then
 	    if ( -d ${lbc_dir_top}/${this_date}/ens_${mem} ) then
 	       set lbc_dir = ${lbc_dir_top}/${this_date}/ens_${mem}
@@ -341,11 +344,13 @@ EOF
 	    endif
 	 endif
       end
-      if ( $lbc_dir == missing ) then
+      if ( $lbc_dir == "missing" ) then
 	 echo "No LBCs within $offset minutes" >> ./FAIL
 	 exit 6
       else
-	#setenv lbc_date `${TOOL_DIR}/da_advance_time.exe ${this_date} 0 -f ccyy-mm-dd_hh:nn:ss`
+        #set this_yyyymmdd = `echo ${this_date} | cut -c 1-8`
+        #set this_hhminutes = `echo ${this_date} | cut -c 9-12`
+        #setenv lbc_date  `date -d "${this_yyyymmdd} ${this_hhminutes}" +%Y-%m-%d_%H:%M:%S`
 	 ln -sf ${lbc_dir}/lbc*.nc .
       endif
    endif
@@ -380,7 +385,7 @@ EOF
    if ( 1 == 2 ) then
    if ( $RUN_STAGE == next_cycle ) then
       if ( $MPAS_INPUT_SOURCE == enkf && $MPAS_STAGE == ensemble ) then
-	 set expected_date = `${TOOL_DIR}/da_advance_time.exe $DATE ${FCST_RANGE}m -f ccyy-mm-dd_hh.nn.ss`
+	 et expected_date = `date -d "${yyyymmdd} ${hh}${minutes} + ${FCST_RANGE} minutes" +%Y-%m-%d_%H.%M.%S` # MPAS format
 	 set expected_filename = ./${file_type}.${expected_date}.nc
 	 if ( -e $expected_filename ) then # first check : existence
 	    if ( `stat -c %s $expected_filename` > 2000000 ) then # second check: file size
@@ -392,7 +397,7 @@ EOF
 		     else
 			foreach fhr ( `seq 0 5 $FCST_RANGE` ) # $FCST_RANGE in minutes
 			  # strip down previous cycle's files for use in envar...we don't need everything...
-			  set this_mpas_date = `$TOOL_DIR/da_advance_time.exe $PREV_DATE ${fhr}m -f ccyy-mm-dd_hh.nn.ss`
+			  set this_mpas_date = `date -d "${pyyyymmdd} ${phhmin} + ${fhr} minutes" +%Y-%m-%d_%H.%M.%S` # MPAS format
 			  set fname = ${EXP_DIR_TOP}/${PREV_DATE}/advance_ensemble/${mem}/${file_type}.${this_mpas_date}.nc
 			  if ( -e $fname ) ncks -O -v theta,pressure_p,pressure_base,qv,uReconstructZonal,uReconstructMeridional,surface_pressure,qr,qs,qg,qc,qi,xtime $fname $fname
 			end

@@ -95,7 +95,6 @@ setenv   MPAS_CODE_DIR         $MPAS_JEDI_BUNDLE_DIR #${REL_DIR}/MPAS/derecho/MP
 # If using MPAS built outside of MPAS-JEDI, probably in $MPAS_CODE_DIR, but if using MPAS built within MPAS-JEDI, they could be in a few places
 setenv   MPAS_TABLE_DIR        ${MPAS_CODE_DIR}/build/MPAS/core_atmosphere
 setenv   WPS_DIR               ${REL_DIR}/WRF/derecho/WPS4.1_parallel   # Need ungrib.exe for MPAS initialization
-setenv   TOOL_DIR              /glade/u/home/schwartz/utils/derecho  # Location of ./da_advance_time.exe, built from WRFDA
 
 setenv ENS_AVERAGE_EXEC        /glade/u/home/schwartz/average_netcdf_files_parallel_mpas_efficient.x # MPI executable to take an average of MPAS NETCDF files
 setenv NETCDF_CONCATENATE_EXEC /glade/u/home/schwartz/concatenate_netcdf/concatenate_netcdf_files.x # MPI executable to concatenate UFO files from all processors into one file
@@ -531,7 +530,9 @@ while ( $DATE <= $end_init )
      # ${SCRIPT_DIR}/run_mpas.csh 1
    endif
 
-   setenv DATE `$TOOL_DIR/da_advance_time.exe $DATE ${CYCLE_PERIOD}m -f ccyymmddhhnn` #advance date
+   set yyyymmdd = `echo "${DATE}" | cut -c 1-8`
+   set hhmin    = `echo "${DATE}" | cut -c 9-12`
+   setenv DATE `date -d "${yyyymmdd} ${hhmin} + ${CYCLE_PERIOD} minutes" +%Y%m%d%H%M` #advance date
 
 end
 

@@ -5,9 +5,12 @@
 # -------------------------------------------------
 
 set DATE = $DATE # from driver.csh; ccyymmddhhnn (e.g., 202305231200)
-set START_DATE_WRF = `${TOOL_DIR}/da_advance_time.exe $DATE 0 -w`
-set sdate = `${TOOL_DIR}/da_advance_time.exe $DATE 0 -f ccyy-mm-dd_hh`
 set yyyymmddhh = `echo "$DATE" | cut -c 1-10`
+set yyyymmdd = `echo "${DATE}" | cut -c 1-8`
+set hhmin = `echo "${DATE}" | cut -c 9-12`
+
+set START_DATE_WRF = `date -d "${yyyymmdd} ${hhmin}" +%Y-%m-%d_%H:%M:%S` # WRF format
+set sdate = `date -d "${yyyymmdd} ${hhmin}" +%Y-%m-%d_%H` # ungrib format
 
 if ( $RUN_STAGE == deterministic ) then
    set output_dir = ${UNGRIB_OUTPUT_DIR_DETERMINISTIC}/${DATE}
@@ -33,7 +36,7 @@ ln -sf ${WPS_DIR}/util/rd_intermediate.exe .  # For querying the output file onl
 foreach iter ( model sst )
 
    if ( $MPAS_REGIONAL =~ *true* || $MPAS_REGIONAL =~ *TRUE* ) then # $MPAS_REGIONAL from driver.csh
-      set END_DATE     =  `${TOOL_DIR}/da_advance_time.exe $DATE ${FCST_RANGE}m`  # $FCST_RANGE from driver.csh
+      set END_DATE     =  `date -d "${yyyymmdd} ${hhmin} + ${FCST_RANGE} minutes" +%Y%m%d%H%M` # $FCST_RANGE from driver.csh
       @ LBC_FREQ_SEC = `expr $LBC_FREQ \* 3600` # $LBC_FREQ from driver.csh
    else
       set END_DATE     =  $DATE # For global run, only initial time needed (no boundary conditions)
@@ -72,7 +75,9 @@ foreach iter ( model sst )
 
    endif
 
-   set END_DATE_WRF =  `${TOOL_DIR}/da_advance_time.exe $END_DATE 0 -w`
+   set yyyymmdd_end = `echo "${END_DATE}" | cut -c 1-8`
+   set hhmin_end    = `echo "${END_DATE}" | cut -c 9-12`
+   set END_DATE_WRF = `date -d "${yyyymmdd_end} ${hhmin_end}" +%Y-%m-%d_%H:%M:%S` # WRF format
 
    #---- Make and go to working directory ---
    set workdir = ${output_dir}/${iter}

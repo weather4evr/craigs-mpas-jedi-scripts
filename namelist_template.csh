@@ -10,12 +10,14 @@
 
 set DATE        = $DATE       # From driver.csh, ccyymmddhhnn
 set FCST_RANGE  = $FCST_RANGE # From driver.csh, in minutes
+set yyyymmdd = `echo "${DATE}" | cut -c 1-8`
+set hhmin    = `echo "${DATE}" | cut -c 9-12`
 
 # Need to specify defaults for variables defined in scripts other than driver.csh
 
 #MPAS defaults
 if ( ! $?case_number          )  set case_number = -1
-if ( ! $?config_stop_time     )  set config_stop_time = `${TOOL_DIR}/da_advance_time.exe ${DATE} 0 -w`
+if ( ! $?config_stop_time     )  set config_stop_time = `date -d "${yyyymmdd} ${hhmin} + ${FCST_RANGE} minutes" +%Y-%m-%d_%H:%M:%S` # WRF format
 if ( ! $?config_static_interp )  set config_static_interp = .false.
 if ( ! $?config_vertical_grid )  set config_vertical_grid = .false.
 if ( ! $?config_met_interp    )  set config_met_interp    = .false.
@@ -36,8 +38,8 @@ if ( ! $?radiation_frequency )    set radiation_frequency = 15000
 #####
 
 # MPAS namelist variables
-set START_DATE_MPAS = `${TOOL_DIR}/da_advance_time.exe $DATE 0 -w`
-set END_DATE_MPAS   = `${TOOL_DIR}/da_advance_time.exe $DATE ${FCST_RANGE}m -w`
+set START_DATE_MPAS = `date -d "${yyyymmdd} ${hhmin}" +%Y-%m-%d_%H:%M:%S` # WRF format
+set END_DATE_MPAS   = `date -d "${yyyymmdd} ${hhmin} + ${FCST_RANGE} minutes" +%Y-%m-%d_%H:%M:%S` # WRF format
 
 if ( $update_sst_interval == none ) then
    set local_update_sst = .false.

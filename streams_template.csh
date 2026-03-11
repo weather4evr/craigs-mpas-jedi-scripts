@@ -8,7 +8,7 @@
 if ( ! $?restart_type        )   set restart_type = "input;output"
 if ( ! $?update_sst_interval )   set update_sst_interval    = "none"
 if ( ! $?lbc_output_interval )   set lbc_output_interval    = "none"
-#if ( ! $?lbc_date            )   set lbc_date    = `${TOOL_DIR}/da_advance_time.exe $DATE 0 -f ccyy-mm-dd_hh:nn:ss`
+#if ( ! $?lbc_date            )   set lbc_date    = `date -d "${yyyymmdd} ${hh}${minutes}" +%Y-%m-%d_%H:%M:%S`
 
 #####
 

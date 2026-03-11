@@ -17,13 +17,18 @@
 # Get Date information and set obs directory 
 #--------------------------------------------
 setenv DATE $DATE  #From driver, ccyymmddnn (e.g., 202305231200)
-setenv mpas_date         `${TOOL_DIR}/da_advance_time.exe ${DATE} 0 -f ccyy-mm-dd_hh.nn.ss`
-setenv jedi_time_string  `${TOOL_DIR}/da_advance_time.exe ${DATE} 0 -f ccyy-mm-ddThh:nn:ssZ`
+set yyyymmddhh = `echo "$DATE" | cut -c 1-10` # yyyymmdd of $DATE
+set yyyymmdd = `echo "$DATE" | cut -c 1-8` # yyyymmdd of $DATE
+set hh = `echo "$DATE" | cut -c 9-10` # hour of $DATE
+set minutes = `echo "$DATE" | cut -c 11-12` # minutes of $DATE
 
-set PREV_DATE = `${TOOL_DIR}/da_advance_time.exe ${DATE} -${CYCLE_PERIOD}m -f ccyymmddhhnn`
+setenv mpas_date         `date -d "${yyyymmdd} ${hh}${minutes}" +%Y-%m-%d_%H.%M.%S` # MPAS format
+setenv jedi_time_string  `date -d "${yyyymmdd} ${hh}${minutes}" +%Y-%m-%dT%H:%M:%SZ` # JEDI time string (e.g., 2023-05-23T12:00:00Z)
+
+set PREV_DATE = `date -d "${yyyymmdd} ${hh}${minutes} - ${CYCLE_PERIOD} minutes" +%Y%m%d%H%M`
 
 set THIS_OB_DIR = ${OB_DIR}/${DATE} #From driver
-setenv time_window_begin `${TOOL_DIR}/da_advance_time.exe ${DATE} -${ob_time_window}m -f ccyy-mm-ddThh:nn:ssZ`
+setenv time_window_begin `date -d "${yyyymmdd} ${hh}${minutes} - ${ob_time_window} minutes" +%Y-%m-%dT%H:%M:%SZ` # JEDI time string
 
 set file_type = ${file_type} # From driver # use mpasout or restart files?
 
@@ -139,8 +144,10 @@ else if ( $JEDI_ANALYSIS_TYPE == forward_operator_for_forecast_verif ) then
    setenv radiation_frequency $radiation_frequency_free_fcst
    set bump_files_needed = false
 
-   set valid_time      = `${TOOL_DIR}/da_advance_time.exe ${DATE} ${FHR} -f ccyymmddhhnn` # FHR from environment
-   set valid_time_mpas = `${TOOL_DIR}/da_advance_time.exe $valid_time 0 -f ccyy-mm-dd_hh.nn.ss`
+   set valid_time = `date -d "${yyyymmdd} ${hh}${minutes} + ${FHR} minutes" +%Y%m%d%H%M` # FHR from environment
+   set fyyyymmdd  = `echo "${valid_time}" | cut -c 1-8`
+   set fhhmin     = `echo "${valid_time}" | cut -c 9-12`
+   set valid_time_mpas = `date -d "${fyyyymmdd} ${fhhmin}" +%Y-%m-%d_%H.%M.%S` # MPAS format
    set THIS_OB_DIR = ${OB_DIR}/${valid_time} 
 
    set jedi_exec = mpasjedi_hofx3d.x
@@ -185,7 +192,7 @@ if ( $need_prior_ensemble =~ *true* || $need_prior_ensemble =~ *TRUE* ) then
    set PREV_ENS_DIR_TOP = ${EXP_DIR_TOP}/${PREV_DATE}/advance_ensemble # Location of prior ensemble when cycling
 
    foreach minute ( $relative_fcst_minutes )
-      set this_mpas_date = `${TOOL_DIR}/da_advance_time.exe ${DATE} ${minute}m -f ccyy-mm-dd_hh.nn.ss` # valid time of interest
+      set this_mpas_date = `date -d "${yyyymmdd} ${hh}${minutes} + ${minute} minutes" +%Y-%m-%d_%H.%M.%S` # MPAS format; valid time of interest
 
      #@ num_diag_files = 0
       @ ie = 1
@@ -238,7 +245,7 @@ if ( $need_prior_deterministic_background =~ *true* || $need_prior_deterministic
 
    # relative_fcst_minutes is a forced scalar (0) for JEDI_ANALYSIS_TYPE forward_operator_for_forecast_verif, bump
    foreach minute ( $relative_fcst_minutes )
-      set this_mpas_date = `${TOOL_DIR}/da_advance_time.exe ${DATE} ${minute}m -f ccyy-mm-dd_hh.nn.ss` # valid time of interest
+      set this_mpas_date = `date -d "${yyyymmdd} ${hh}${minutes} + ${minute} minutes" +%Y-%m-%d_%H.%M.%S` # MPAS format; valid time of interest
 
       set this_det_background = mpasin.${this_mpas_date}.nc # deterministic background that we will make (it will be a link)
 
@@ -498,7 +505,7 @@ if ( $observations_needed =~ *true* || $observations_needed =~ *TRUE* ) then
 	    set found_it = false
 
 	    foreach offset ( `seq $VARBC_CYCLE_PERIOD 1 $MAX_VARBC_CYCLE` ) # e.g., seq 60 1 1440
-	       setenv PREV_DATE_VARBC `${TOOL_DIR}/da_advance_time.exe ${DATE} -${offset}m -f ccyymmddhhnn`
+	       setenv PREV_DATE_VARBC `date -d "${yyyymmdd} ${hh}${minutes} - ${offset} minutes" +%Y%m%d%H%M`
 	       set possible_dirs = ( ${EXP_DIR_TOP}/${PREV_DATE_VARBC}/envar  \
 				     ${EXP_DIR_TOP}/${PREV_DATE_VARBC}/enkf   \
 				     ${EXP_DIR_TOP}/${PREV_DATE_VARBC}/jedi_ens_mean )
