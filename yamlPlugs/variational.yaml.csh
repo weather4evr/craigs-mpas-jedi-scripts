@@ -50,7 +50,7 @@ cost function:
     interpolation type: unstructured
   analysis variables: *incvars
   background:
-    state variables: [spechum,surface_pressure,temperature,uReconstructMeridional,uReconstructZonal,theta,rho,u,w,qv,pressure,landmask,observable_domain_mask,xice,snowc,skintemp,ivgtyp,isltyp,snowh,vegfra,u10,v10,lai,smois,tslb,pressure_p,qc,qi,qg,qr,qs,cldfrac,refl10cm] #refl10cm,qh,nr,ns,ng,nh,volg,volh]
+    state variables: [spechum,surface_pressure,temperature,uReconstructMeridional,uReconstructZonal,theta,rho,u,w,qv,pressure,landmask,observable_domain_mask,xice,snowc,skintemp,ivgtyp,isltyp,snowh,vegfra,u10,v10,lai,smois,tslb,pressure_p,qc,qi,qg,qr,qs,cldfrac] #refl10cm,qh,nr,ns,ng,nh,volg,volh]
     filename: "./bg.${mpas_date}.nc"
     date: *analysisDate
   background error:

@@ -4,8 +4,12 @@ set output_fname = $1 # file that is output (added to, given 'cat >>' )
 cat >> $output_fname << EOF
 _member: &memberConfig
   date: &analysisDate ${jedi_time_string}
-  state variables: [spechum,surface_pressure,temperature,uReconstructMeridional,uReconstructZonal,theta,rho,u,w,qv,pressure,landmask,observable_domain_mask,xice,snowc,skintemp,ivgtyp,isltyp,snowh,vegfra,u10,v10,lai,smois,tslb,pressure_p,qc,qi,qg,qr,qs,cldfrac,refl10cm] #refl10cm,qh,nr,ns,ng,nh,volg,volh]
+  state variables: [spechum,surface_pressure,temperature,uReconstructMeridional,uReconstructZonal,theta,rho,u,w,qv,pressure,landmask,observable_domain_mask,xice,snowc,skintemp,ivgtyp,isltyp,snowh,vegfra,u10,v10,lai,smois,tslb,pressure_p,qc,qi,qg,qr,qs,cldfrac,refl10cm ,ni,nc,nr,ns,ng,smlf,gmlf] # after refl10cm needed for PPRO
   stream name: background
+  use power transform mixing ratios: false  # for PPRO??
+  use power transform number concentrations: false
+  power of mixing ratio control variable: 0.4
+  power of number concentration control variable: 0.4
 
 _multi iteration filter: &multiIterationFilter
   _blank: null
@@ -54,7 +58,7 @@ background:
     zero padding: 3
     nmembers: $ENS_SIZE
 
-increment variables: [spechum,surface_pressure,temperature,uReconstructMeridional,uReconstructZonal,qc,qi,qg,qr,qs]
+increment variables: [spechum,surface_pressure,temperature,uReconstructMeridional,uReconstructZonal,qc,qi,qg,qr,qs,ni,nr,ns,ng,smlf,gmlf,refl10cm] # after qs for PPRO
 
 driver: *${letkf_stage} #*asObserver or *asSolver
 
@@ -72,6 +76,11 @@ local ensemble DA:
 output:
   filename: ./analysis.\$Y-\$M-\$D_\$h.\$m.\$s_en%{member}%.nc
   stream name: analysis
+  use power transform mixing ratios: false  # for PPRO??
+  use power transform number concentrations: false
+  power of mixing ratio control variable: 0.4
+  power of number concentration control variable: 0.4
+
 
 #output mean prior:
 #  filename: ./ens_mean_prior.\$Y-\$M-\$D_\$h.\$m.\$s.nc

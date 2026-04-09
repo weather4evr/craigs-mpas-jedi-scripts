@@ -20,23 +20,23 @@ cat >> $output_fname << EOF
   obs error: *ObsErrorDiagonal
 ##<<: *heightAndHorizObsLocCloud
   obs operator:
-    name: VertInterp
+#   name: VertInterp
+#   observation vertical coordinate: height
+#   vertical coordinate: geometric_height
+#   interpolation method: linear
+    name: PPRO
+  options: # For PPRO-not need for VertInterp
+  # microphysics option: tcwa2
+    var_cloud_mixing_ratio: mixing_ratio_of_cloud_liquid_water
+    var_ice_mixing_ratio: cloud_ice
+    var_ice_number_concentration: ice_number_concentration
+    var_snow_melted_fraction: melted_fraction_of_snow
+    var_graupel_melted_fraction: melted_fraction_of_graupel
     observation vertical coordinate: height
     vertical coordinate: geometric_height
     interpolation method: linear
-   #name: PPRO
-   #microphysics option: NSSL
-   #use variational method: false
-   #var_rain_mixing_ratio: mixing_ratio_of_rain
-   #var_snow_mixing_ratio: mixing_ratio_of_snow
-   #var_graupel_mixing_ratio: mixing_ratio_of_graupel
-   #var_hail_mixing_ratio: mixing_ratio_of_hail
-   #var_rain_number_concentration: rain_number_concentration
-   #var_snow_number_concentration: snow_number_concentration
-   #var_graupel_number_concentration: graupel_number_concentration
-   #var_hail_number_concentration: hail_number_concentration
-   #var_graupel_vol_mixing_ratio: volume_mixing_ratio_of_graupel_in_air
-   #var_hail_vol_mixing_ratio: volume_mixing_ratio_of_hail_in_air
+    #observation alias file: obsop_name_map.yaml
+
   get values:
     <<: *GetValues
   obs filters:
@@ -56,7 +56,7 @@ cat >> $output_fname << EOF
     - name: equivalentReflectivityFactor
     action:
       name: assign error
-      error parameter: 3.0
+      error parameter: 1.5
 
   - filter: Bounds Check
     filter variables:
@@ -64,7 +64,7 @@ cat >> $output_fname << EOF
     maxvalue: 75.0
     minvalue: -15.0
 
-  - filter: Background Check
+  - filter: Background Check # uses the obs error you assigned earlier
     threshold: $bgchk_thresh #5.0
 
     <<: *multiIterationFilter
