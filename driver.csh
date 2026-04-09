@@ -50,9 +50,9 @@ setenv mpas_account  "NMMM0021"
 setenv jedi_account  $mpas_account
 
 set jedi_queue = "main"  #full name: main@chadmin1.ib0.cheyenne.ucar.edu" 
-set jedi_priority = "regular"
+set jedi_priority = "economy"
 set mpas_queue = "main"
-set mpas_priority = "regular"
+set mpas_priority = "economy"
 
 # Decide what to run (run if true):
 setenv RUN_UNGRIB              false
@@ -101,14 +101,22 @@ setenv NETCDF_CONCATENATE_EXEC /glade/u/home/schwartz/concatenate_netcdf/concate
 setenv THINNING_HofX_EXEC      /glade/u/home/schwartz/MPAS_JEDI/scripts/thinning_hofx.py
 
 # Environments--assumes you have a "default" environment that can be "restore"d ('module restore default'). This is just the general environment you use; make one if you don't have one.
-setenv default_environment_file   ${SCRIPT_DIR}/default_environment.txt # Default login environment; will be created then sourced.
+#setenv default_environment_file   ${SCRIPT_DIR}/default_environment.txt # Default login environment; will be created then sourced.
 setenv jedi_environment_file  ${MPAS_JEDI_BUNDLE_DIR}/code/mpas-bundle/env-setup/gnu-derecho.csh     # File with the JEDI environment. Must already be there.
 setenv mpasjedi_library_path  ${MPAS_JEDI_BUNDLE_DIR}/build/lib  # Full path location to libmpasjedi.so that is built when compiling JEDI; needed on Derecho
-setenv run_cmd_jedi           mpiexec # MPI command to run jedi, could differ from $run_cmd (above) that is based on the machine
+setenv run_cmd_jedi           mpiexec # MPI command to run JEDI, could differ from $run_cmd (above) that is based on the machine
 setenv mpas_compiled_within_jedi    true  # (true, false) If true, use the MPAS model/init executables compiled within mpas-bundle using JEDI environment. If false use mpas_environment_file for mpas environment
-   setenv mpas_environment_file      ${SCRIPT_DIR}/mpas_environment.txt # Environment used to compile MPAS (outside JEDI context); file will be created below
-   # next option only used if $mpas_compiled_within_jedi = False
-   set mpas_modules = ( ncarenv/23.09   craype/2.7.23 intel-oneapi/2023.2.1 ncarcompilers/1.0.0 cray-mpich/8.1.27 hdf5-mpi/1.12.2 netcdf-mpi/4.9.2 parallelio/2.6.2 parallel-netcdf/1.12.3 ) # if mpas_modules = ( "default" ), use the default environment. Otherwise, set to the list of modules used to compile MPAS (outside JEDI context)
+setenv mpas_environment_file      ${SCRIPT_DIR}/mpas_environment.txt # Environment used to compile MPAS (outside JEDI context); file must be there if $mpas_compiled_within_jedi == false
+
+# You might need python with numpy and netCDF (look for "python" in run_jedi.csh).
+# If the proper python executable is in your environment that you use when executing
+#   these scripts, set the next two variables to blank values (e.g., "" ).
+# But, if you need to load a proper python environment, set the next two variables.
+# The first one (python_load_env_string) loads the python environment and the second one 
+#   (python_close_env_string) exits it.
+# In run_jedi.csh "eval" is used to actually execute the commands
+setenv python_load_env_string  "conda activate npl" # ""
+setenv python_close_env_string "conda deactivate"   # ""
 
 ############################################################
 # This controls the top-level directory of the experiment  #
@@ -312,7 +320,7 @@ setenv FOUR_D_ENVAR   false  # (true,false) ... whether to use 4DEnVar
    setenv    ens_fcst_mins    "-180 -120 -60 0 60 120 180"  # Forecast minutes relative to analysis time for FGAT/4DEnVar
 
 # background error covariance for EnVar via BUMP, which uses $corrlength_model_space, $vertloc_length_model_space, and $vertloc_coord_model_space_bump
-setenv BE_DIR         /glade/derecho/scratch/schwartz/CWA/2025/${ENSEMBLE_MESH}/bump_files # location of BUMP files
+setenv BE_DIR         /glade/derecho/scratch/schwartz/CWA/2025/${ENSEMBLE_MESH}/bump_files_${jedi_variational_num_procs}cpus # location of BUMP files
 setenv BE_PREFIX      bumploc_${corrlength_model_space}km_${vertloc_length_model_space}${vertloc_coord_model_space_bump} # prefix of BUMP files
 
 # ----------------------
@@ -343,17 +351,10 @@ foreach f ( $ff )
    endif
 end
 
-# Make file with main modules and then load them
-echo "module --force purge ; module restore default" > $default_environment_file
-source $default_environment_file
-
-if ( $mpas_compiled_within_jedi =~ *true* || $mpas_compiled_within_jedi =~ *TRUE* ) then
-   cp $jedi_environment_file $mpas_environment_file
-else
-   if ( $mpas_modules[1] == default ) then
-      cp $default_environment_file $mpas_environment_file
-   else
-      echo "module --force purge ; module load ${mpas_modules} " > $mpas_environment_file
+if ( $mpas_compiled_within_jedi =~ *false* || $mpas_compiled_within_jedi =~ *FALSE* ) then
+   if ( ! -e $mpas_environment_file ) then
+      echo "$mpas_environment_file doesn't exist. Abort!"
+      exit
    endif
 endif
 

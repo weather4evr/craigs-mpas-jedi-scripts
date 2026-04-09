@@ -89,7 +89,7 @@ if ( $JEDI_ANALYSIS_TYPE == envar ) then
    setenv config_len_disp $config_len_disp_deterministic
    setenv radiation_frequency $radiation_frequency_deterministic
    set bump_files_needed = true
-   set jedi_exec = mpasjedi_variational.x
+   setenv jedi_exec   mpasjedi_variational.x
 
 else if ( $JEDI_ANALYSIS_TYPE =~ *enkf* ) then
    setenv num_outer_loops    0 # From driver
@@ -101,23 +101,23 @@ else if ( $JEDI_ANALYSIS_TYPE =~ *enkf* ) then
    setenv radiation_frequency $radiation_frequency_ens
    set bump_files_needed = false
 
-   set jedi_exec = mpasjedi_enkf.x
+   setenv jedi_exec   mpasjedi_enkf.x
 
    if ( $JEDI_ANALYSIS_TYPE == enkf_prior_mean ) then
       set dir_prefx = ens_mean
-      set jedi_enkf_num_procs_per_node_observer = $jedi_enkf_num_procs_per_node_observer_mean
+      setenv jedi_enkf_num_procs_per_node_observer   $jedi_enkf_num_procs_per_node_observer_mean
       setenv linear_forward_operator false # we want a nonlinear HofX for the ensemble mean prior
    else if ( $JEDI_ANALYSIS_TYPE == enkf_prior_members ) then
       set dir_prefx = ens # becomes member-dependent later
       set member = $PBS_ARRAY_INDEX # #PBS with "-J" flag (PBS pro)
-      set jedi_enkf_num_procs_per_node_observer = $jedi_enkf_num_procs_per_node_observer_members
+      setenv jedi_enkf_num_procs_per_node_observer   $jedi_enkf_num_procs_per_node_observer_members
    else if ( $JEDI_ANALYSIS_TYPE == enkf_all_at_once ) then
       set dir_prefx = enkf
-      set jedi_enkf_num_procs_per_node_observer = $jedi_enkf_num_procs_per_node_solver
+      setenv jedi_enkf_num_procs_per_node_observer   $jedi_enkf_num_procs_per_node_solver
       setenv linear_forward_operator false # use nonlinear HofX if processing all members simultaneously
    else if ( $JEDI_ANALYSIS_TYPE == enkf_solver ) then
       set dir_prefx = enkf
-      set jedi_enkf_num_procs_per_node_observer = $jedi_enkf_num_procs_per_node_observer_mean # for OMA
+      setenv jedi_enkf_num_procs_per_node_observer   $jedi_enkf_num_procs_per_node_observer_mean # for OMA
    endif
 
 else if ( $JEDI_ANALYSIS_TYPE == bump ) then
@@ -127,8 +127,8 @@ else if ( $JEDI_ANALYSIS_TYPE == bump ) then
    set MPAS_GRID_INFO_DIR = $grid_info_dir_ens
    setenv graph_info_prefx     $graph_info_prefx_ens
 
-  #set jedi_exec = mpasjedi_error_covariance_training.x
-   set jedi_exec = mpasjedi_error_covariance_toolbox.x
+  #setenv jedi_exec   mpasjedi_error_covariance_training.x
+   setenv jedi_exec   mpasjedi_error_covariance_toolbox.x
 
    set observations_needed = false
    set bump_files_needed = false
@@ -150,7 +150,7 @@ else if ( $JEDI_ANALYSIS_TYPE == forward_operator_for_forecast_verif ) then
    set valid_time_mpas = `date -d "${fyyyymmdd} ${fhhmin}" +%Y-%m-%d_%H.%M.%S` # MPAS format
    set THIS_OB_DIR = ${OB_DIR}/${valid_time} 
 
-   set jedi_exec = mpasjedi_hofx3d.x
+   setenv jedi_exec   mpasjedi_hofx3d.x
 
 else
    echo "JEDI_ANALYSIS_TYPE = $JEDI_ANALYSIS_TYPE invalid. exit."
@@ -161,15 +161,15 @@ endif
 # Set working directory and go to it
 #-------------------------------------
 if ( $JEDI_ANALYSIS_TYPE == bump ) then
-   set JEDI_RUN_DIR = $BE_DIR # $BE_DIR from driver.csh
+   setenv JEDI_RUN_DIR   $BE_DIR # $BE_DIR from driver.csh
 else if ( $JEDI_ANALYSIS_TYPE == forward_operator_for_forecast_verif ) then # Special case, so special directory
-   set JEDI_RUN_DIR = ${EXP_DIR_TOP}/${DATE}/${dir_prefx}/f${FHR} # FHR from environment
+   setenv JEDI_RUN_DIR   ${EXP_DIR_TOP}/${DATE}/${dir_prefx}/f${FHR} # FHR from environment
 else if ( $JEDI_ANALYSIS_TYPE == enkf_prior_mean ) then
-   set JEDI_RUN_DIR = ${EXP_DIR_TOP}/${DATE}/enkf/${dir_prefx}
+   setenv JEDI_RUN_DIR   ${EXP_DIR_TOP}/${DATE}/enkf/${dir_prefx}
 else if ( $JEDI_ANALYSIS_TYPE == enkf_prior_members ) then
-   set JEDI_RUN_DIR = ${EXP_DIR_TOP}/${DATE}/enkf/${dir_prefx}_${member}
+   setenv JEDI_RUN_DIR   ${EXP_DIR_TOP}/${DATE}/enkf/${dir_prefx}_${member}
 else
-   set JEDI_RUN_DIR = ${EXP_DIR_TOP}/${DATE}/${dir_prefx}
+   setenv JEDI_RUN_DIR   ${EXP_DIR_TOP}/${DATE}/${dir_prefx}
 endif
 
 mkdir -p $JEDI_RUN_DIR
@@ -253,7 +253,7 @@ if ( $need_prior_deterministic_background =~ *true* || $need_prior_deterministic
 	 set directory  = "."
 	 set fname = ${file_type}.${this_mpas_date}.nc
       else if ( $JEDI_ANALYSIS_TYPE == bump ) then
-	 set directory = ${MPAS_INIT_ENS_OUTPUT_DIR_TOP}/${DATE}
+	 set directory = ${MPAS_INIT_ENS_OUTPUT_DIR_TOP}/${DATE}/ens_1
 	 set fname = init.nc
       else if ( $JEDI_ANALYSIS_TYPE == envar ) then
 	 if ( $envar_det_fg_source == cycle ) then
@@ -680,11 +680,11 @@ setenv update_sst .false. # MPAS-JEDI doesn't care about SST update, so force th
 if ( $JEDI_ANALYSIS_TYPE == bump ) setenv mpas_restart  .false.
 
 $NAMELIST_TEMPLATE mpas $JEDI_RUN_DIR # Output is ./namelist.atmosphere; need to append one more part for MPAS-JEDI applications
-cat >> ./namelist.atmosphere << EOF2
+cat >> ./namelist.atmosphere << EOF0
 &assimilation
    config_jedi_da = true
 /
-EOF2
+EOF0
 
 mv ./namelist.atmosphere ./namelist.atmosphere_${DATE} # MPAS-JEDI doesn't like files named ./namelist.atmosphere...it will make it itself
   
@@ -700,11 +700,11 @@ if ( $JEDI_ANALYSIS_TYPE == envar ) then
    setenv radiation_frequency $radiation_frequency_ens
    setenv graph_info_prefx     $graph_info_prefx_ens
    $NAMELIST_TEMPLATE mpas $JEDI_RUN_DIR # Output is ./namelist.atmosphere; need to append one more part for MPAS-JEDI applications
-   cat >> ./namelist.atmosphere << EOF3
+   cat >> ./namelist.atmosphere << EOF1
 &assimilation
    config_jedi_da = true
 /
-EOF3
+EOF1
    mv ./namelist.atmosphere ./namelist.atmosphere_${DATE}_ens # MPAS-JEDI doesn't like files named ./namelist.atmosphere...it will make it itself
 endif
 
@@ -720,34 +720,25 @@ if ( $radiance_str != "" ) then
    ln -sf $NETCDF_CONCATENATE_EXEC .
    foreach prefx ( geovals ydiag )
       rm -f ./input_${prefx}.nml
-      cat > ./input_${prefx}.nml << EOF4
+      cat > ./input_${prefx}.nml << EOF2
 &share
 obspath = '${jedi_output_dir}'
 obs_platforms = ${radiance_str}
 output_path = '${jedi_output_dir}'
 fname_prefx = '${prefx}'
 /
-EOF4
+EOF2
    end
 endif
 
 #---------------
 # Run MPAS-JEDI
 #---------------
-ln -sf $jedi_environment_file .  # link to keep a record
-source $jedi_environment_file
-#limit stacksize unlimited
-setenv OOPS_TRACE 0
-setenv OOPS_DEBUG 0
-setenv OMP_NUM_THREADS 1
-setenv FI_CXI_RX_MATCH_MODE 'hybrid'
-setenv GFORTRAN_CONVERT_UNIT 'big_endian:101-200' # needed for gfortran compiler
-setenv F_UFMTENDIAN 'big:101-200' # maybe needed for intel compiler
-if ( $?mpasjedi_library_path ) setenv LD_LIBRARY_PATH ${mpasjedi_library_path}:$LD_LIBRARY_PATH # need path of library on derecho
+ln -sf $jedi_environment_file .  # link to keep a record, and we will 'source' it iin sub-shells later
 
 # cd again to $JEDI_RUN_DIR; under some strange conditions, probably a combination
-# of job arrays on derecho, and possible use of 'pwd' in $mpas_environment_file
-# (if $mpas_environment_file ==> jedi_environment), things can end up in the
+# of job arrays on derecho, and possible use of 'pwd' in $jedi_environment_file
+# things can end up in the
 # wrong directory. pretty strange, but just do it.
 cd $JEDI_RUN_DIR  # The working directory 
 
@@ -763,31 +754,39 @@ if ( $JEDI_ANALYSIS_TYPE =~ *enkf_prior* ) then
       sed -i '/Gaussian Thinning/{N;d;}' ./observer.yaml
    endif
 
-   $run_cmd_jedi -n $jedi_enkf_num_procs_observer -ppn $jedi_enkf_num_procs_per_node_observer $jedi_exec ./observer.yaml  ./observer.log &
-   set pid = $!
+   # open a csh subshell. using 'EOF' (in quotes) allows environmental variables to come in only, 
+   # without expanding the subshell before it executes.
+   # closing 'EOF' can't have any spaces or tabs before or after it
+   # because of picky csh syntax, we should escape the single quotes
+   csh -f << \'EOF3\'
+      set noglob # just do this to avoid a bug on Derecho when submitting a job array
+      source $jedi_environment_file
+      if ( $?mpasjedi_library_path ) setenv LD_LIBRARY_PATH ${mpasjedi_library_path}:$LD_LIBRARY_PATH # need path of library on derecho
+      cd $JEDI_RUN_DIR  # just do it, because of bug on derecho when submitting job arrays that will 'cd' to an unexpected place.
+      $run_cmd_jedi -n $jedi_enkf_num_procs_observer -ppn $jedi_enkf_num_procs_per_node_observer $jedi_exec ./observer.yaml  ./observer.log < /dev/null &
+      set pid = $!
 
-   # When running many instances of MPAS-JEDI simultaneously, sometimes it hangs, so check for completion in log file
-   # and move on if it's actually done, potentially killing things.
-   echo "$pid" > ./waiting
-   while ( 1 == 1 )
-      if ( ( `grep "Finishing oops::LocalEnsembleDA<MPAS, UFO and IODA observations> with status = 0" ./observer.log | wc -l` == 1 ) || \
-           ( `grep "OOPS Ending" ./observer.log | wc -l` == 1 )  || \
-           ( `grep "Timing Statistics" ./observer.log | wc -l` == 1 ) ) then
-         rm -f ./waiting
-	 if ( `ps | grep $pid | wc -l` == 1 ) kill -9 $pid 
-         break
-      else
-         sleep 5
-      endif
-   end
+      # When running many instances of MPAS-JEDI simultaneously, sometimes it hangs, so check for completion in log file
+      # and move on if it's actually done, potentially killing things.
+      echo "$pid" > ./waiting
+      while ( 1 == 1 )
+	 if ( ( `grep "Finishing oops::LocalEnsembleDA<MPAS, UFO and IODA observations> with status = 0" ./observer.log | wc -l` == 1 ) || \
+	      ( `grep "OOPS Ending" ./observer.log | wc -l` == 1 )  || \
+	      ( `grep "Timing Statistics" ./observer.log | wc -l` == 1 ) ) then
+	    rm -f ./waiting
+	    if ( `ps | grep $pid | wc -l` == 1 ) kill -9 $pid 
+	    break
+	 else
+	    sleep 5
+	 endif
+      end
+\'EOF3\'
 
-   # Done running MPAS-JEDI, so source our main environment
-   source $default_environment_file # From driver
-   unsetenv GFORTRAN_CONVERT_UNIT F_UFMTENDIAN  OMP_NUM_THREADS
-   module load conda/latest
-   conda activate npl
+  # Done running MPAS-JEDI
 
    if ( $JEDI_ANALYSIS_TYPE == enkf_prior_mean ) then
+     #module load conda/latest
+     #conda activate npl
       foreach inst ( $instruments )
 	 set fname1 = ${jedi_output_dir}/obsout_omb_${inst}.h5
 	 if ( -e $fname1 ) then
@@ -800,15 +799,18 @@ if ( $JEDI_ANALYSIS_TYPE =~ *enkf_prior* ) then
 	   #ncrename -g "ObsError","ObsError_original" $fname
 	   #ncrename -g "EffectiveError0","ObsError"   $fname
 	   
-	   # ... or this line, which requires NOT resetting PreQC_maxvalue to 0
-	    python $THINNING_HofX_EXEC --thinning 1 --rundir $jedi_output_dir --hofxfile obsout_omb_${inst}.h5 --outfile obsout_omb_${inst}_1st_pass.h5
+	   # ... or these next 3 lines, which requires NOT resetting PreQC_maxvalue to 0
+	   ln -sf $THINNING_HofX_EXEC . # just to have a copy
+	   set python_exec_string = "python $THINNING_HofX_EXEC --thinning 1 --rundir $jedi_output_dir --hofxfile obsout_omb_${inst}.h5 --outfile obsout_omb_${inst}_1st_pass.h5"
+	   eval "$python_load_env_string ; $python_exec_string ; $python_close_env_string"
+	   #python $THINNING_HofX_EXEC --thinning 1 --rundir $jedi_output_dir --hofxfile obsout_omb_${inst}.h5 --outfile obsout_omb_${inst}_1st_pass.h5
 
 	    # Link updated files to working directory for 2nd pass through ensemble mean prior
 	    mv ./${inst}_obs_${DATE}.h5 ./${inst}_obs_${DATE}_orig.h5
 	    ln -sf $fname ./${inst}_obs_${DATE}.h5
 	 endif
       end
-      conda deactivate npl
+     #conda deactivate
 
       # Need to run JEDI again, using the files we just produced as our OBSERVATION files
       # The ensemble member files will use these files as observations, so we also need to use them for the ensemble mean
@@ -823,20 +825,13 @@ if ( $JEDI_ANALYSIS_TYPE =~ *enkf_prior* ) then
      #sed -i "s/.*save single member for observer.*/  save single member for observer: false/g" ./observer.yaml # disable single member to compute H(x) for all members (note 2 spaces at start)
 
       # Run MPAS-JEDI again
-      source $jedi_environment_file
-      #limit stacksize unlimited
-      setenv OOPS_TRACE 0
-      setenv OOPS_DEBUG 0
-      setenv OMP_NUM_THREADS 1
-      setenv GFORTRAN_CONVERT_UNIT 'big_endian:101-200' # needed for gfortran compiler
-      setenv F_UFMTENDIAN 'big:101-200' # maybe needed for intel compiler
-      if ( $?mpasjedi_library_path ) setenv LD_LIBRARY_PATH ${mpasjedi_library_path}:$LD_LIBRARY_PATH # need path of library on derecho
-
-      $run_cmd_jedi -n $jedi_enkf_num_procs_observer -ppn $jedi_enkf_num_procs_per_node_observer $jedi_exec ./observer.yaml  ./observer.log_again
+      csh << \'EOF4\'
+	 source $jedi_environment_file
+	 if ( $?mpasjedi_library_path ) setenv LD_LIBRARY_PATH ${mpasjedi_library_path}:$LD_LIBRARY_PATH # need path of library on derecho
+	 $run_cmd_jedi -n $jedi_enkf_num_procs_observer -ppn $jedi_enkf_num_procs_per_node_observer $jedi_exec ./observer.yaml  ./observer.log_again < /dev/null
+\'EOF4\'
 
       # we need to change the format of the obsout_omb files so we can use ncks on them later
-      source $default_environment_file # From driver
-      unsetenv GFORTRAN_CONVERT_UNIT F_UFMTENDIAN  OMP_NUM_THREADS
       foreach inst ( $instruments )
 	 set fname1 = ${jedi_output_dir}/obsout_omb_${inst}.h5
 	 if ( -e $fname1 ) then
@@ -863,11 +858,16 @@ if ( $JEDI_ANALYSIS_TYPE =~ *enkf_prior* ) then
 else if ( $JEDI_ANALYSIS_TYPE == enkf_solver ) then
 
    mv $full_yaml_file ./solver.yaml
-   $run_cmd_jedi -n $jedi_enkf_num_procs_solver -ppn $jedi_enkf_num_procs_per_node_solver $jedi_exec ./solver.yaml  ./solver.log 
-   if ( $status != 0 ) then
-      echo "EnKF solver failed with status = ${status}" >> FAIL
-      exit 13
-   endif
+
+   csh << \'EOF5\'
+      source $jedi_environment_file
+      if ( $?mpasjedi_library_path ) setenv LD_LIBRARY_PATH ${mpasjedi_library_path}:$LD_LIBRARY_PATH # need path of library on derecho
+      $run_cmd_jedi -n $jedi_enkf_num_procs_solver -ppn $jedi_enkf_num_procs_per_node_solver $jedi_exec ./solver.yaml  ./solver.log < /dev/null
+      if ( $status != 0 ) then
+	 echo "EnKF solver failed with status = ${status}" >> FAIL
+	 exit 13
+      endif
+\'EOF5\'
 
    # now run EnKF to get OMA statistics
    # all we need to do is run LETKF again in observer mode, but point to the analysis files
@@ -889,11 +889,12 @@ else if ( $JEDI_ANALYSIS_TYPE == enkf_solver ) then
          ln -sf ./analysis.${mpas_date}_en${m3}.nc ./mpas_en${m3}.nc # YAML looks for ./mpas_en${m3}.nc
          @ ie ++
       end
-      $run_cmd_jedi -n $jedi_enkf_num_procs_observer -ppn $jedi_enkf_num_procs_per_node_observer $jedi_exec ./oma.yaml  ./oma.log 
 
-      # source main environment so we can use ncks
-      source $default_environment_file # From driver
-      unsetenv GFORTRAN_CONVERT_UNIT F_UFMTENDIAN  OMP_NUM_THREADS
+      csh << \'EOF6\'
+	 source $jedi_environment_file
+	 if ( $?mpasjedi_library_path ) setenv LD_LIBRARY_PATH ${mpasjedi_library_path}:$LD_LIBRARY_PATH # need path of library on derecho
+	 $run_cmd_jedi -n $jedi_enkf_num_procs_observer -ppn $jedi_enkf_num_procs_per_node_observer $jedi_exec ./oma.yaml  ./oma.log < /dev/null
+\'EOF6\'
 
       # Strip out modulated members in the OMA files
       foreach inst ( $instruments )
@@ -912,52 +913,62 @@ else if ( $JEDI_ANALYSIS_TYPE == enkf_all_at_once ) then
    # first run EnKF in "observer" mode
    mv $full_yaml_file ./observer.yaml
 
-   $run_cmd_jedi -n $jedi_enkf_num_procs_observer -ppn $jedi_enkf_num_procs_per_node_observer $jedi_exec ./observer.yaml  ./observer.log
-   if ( $status != 0 ) then
-      echo "EnKF observer failed with status = ${status}" >> FAIL
-      exit 12
-   endif
+   csh << \'EOF7\'
+      source $jedi_environment_file
+      if ( $?mpasjedi_library_path ) setenv LD_LIBRARY_PATH ${mpasjedi_library_path}:$LD_LIBRARY_PATH # need path of library on derecho
+      $run_cmd_jedi -n $jedi_enkf_num_procs_observer -ppn $jedi_enkf_num_procs_per_node_observer $jedi_exec ./observer.yaml  ./observer.log < /dev/null
+      if ( $status != 0 ) then
+	 echo "EnKF observer failed with status = ${status}" >> FAIL
+	 exit 12
+      endif
 
-   # now run EnKF in "solver" mode
-   # we need to change some YAML variables. Easiest way is to just change what we
-   # already have (./observer.yaml) usings sed, since changes are minimal
-   cp ./observer.yaml ./solver.yaml
-   sed -i "s/*asObserver/*asSolver/g"  ./solver.yaml
-   sed -i "s/*RoundRobinDistribution/*HaloDistribution/g" ./solver.yaml
-   sed -i "s/*ObsDataIn/*ObsDataOut/g" ./solver.yaml
-   sed -i '/ obsdataout/d' ./solver.yaml # note the space in front of obsdata out; this deletes the whole line
+      # now run EnKF in "solver" mode
+      # we need to change some YAML variables. Easiest way is to just change what we
+      # already have (./observer.yaml) usings sed, since changes are minimal
+      cp ./observer.yaml ./solver.yaml
+      sed -i "s/*asObserver/*asSolver/g"  ./solver.yaml
+      sed -i "s/*RoundRobinDistribution/*HaloDistribution/g" ./solver.yaml
+      sed -i "s/*ObsDataIn/*ObsDataOut/g" ./solver.yaml
+      sed -i '/ obsdataout/d' ./solver.yaml # note the space in front of obsdata out; this deletes the whole line
 
-   $run_cmd_jedi -n $jedi_enkf_num_procs_solver -ppn $jedi_enkf_num_procs_per_node_solver $jedi_exec ./solver.yaml  ./solver.log 
-   if ( $status != 0 ) then
-      echo "EnKF solver failed with status = ${status}" >> FAIL
-      exit 13
-   endif
+      $run_cmd_jedi -n $jedi_enkf_num_procs_solver -ppn $jedi_enkf_num_procs_per_node_solver $jedi_exec ./solver.yaml  ./solver.log < /dev/null
+      if ( $status != 0 ) then
+	 echo "EnKF solver failed with status = ${status}" >> FAIL
+	 exit 13
+      endif
 
-   # now run EnKF to get OMA statistics
-   # all we need to do is run LETKF again in observer mode, but point to the analysis files
-   # also need to put the output in a unique directory
-   if ( $do_oma =~ *true* || $do_oma =~ *TRUE* ) then
-      set omaDir = ./dbAna
-      mkdir -p $omaDir
-      cp ./observer.yaml ./oma.yaml
-      # Replace {jedi_output_dir}/obsout_omb with ${omaDir}/obsout_oma; use "|" as sed delimiter because of "/" characters in strings
-      # Also replace jedi_output_dir with $omaDir for geovals and ydiag files for radiances
-      sed -i "s|${jedi_output_dir}/obsout_omb|${omaDir}/obsout_oma|g" oma.yaml
-      sed -i "s|${jedi_output_dir}|${omaDir}|g" oma.yaml
+      # now run EnKF to get OMA statistics
+      # all we need to do is run LETKF again in observer mode, but point to the analysis files
+      # also need to put the output in a unique directory
+      if ( $do_oma =~ *true* || $do_oma =~ *TRUE* ) then
+	 set omaDir = ./dbAna
+	 mkdir -p $omaDir
+	 cp ./observer.yaml ./oma.yaml
+	 # Replace {jedi_output_dir}/obsout_omb with ${omaDir}/obsout_oma; use "|" as sed delimiter because of "/" characters in strings
+	 # Also replace jedi_output_dir with $omaDir for geovals and ydiag files for radiances
+	 sed -i "s|${jedi_output_dir}/obsout_omb|${omaDir}/obsout_oma|g" oma.yaml
+	 sed -i "s|${jedi_output_dir}|${omaDir}|g" oma.yaml
 
-      @ ie = 1
-      while ( $ie <= $ENS_SIZE )
-         set m3 = `printf %03d $ie` # Each member must have three digits (i.e., 001, 010, 100)
-         mv ./mpas_en${m3}.nc ./mpas_bak${m3}.nc # rename the background files
-         ln -sf ./analysis.${mpas_date}_en${m3}.nc ./mpas_en${m3}.nc # YAML looks for ./mpas_en${m3}.nc
-         @ ie ++
-      end
-      $run_cmd_jedi -n $jedi_enkf_num_procs_observer -ppn $jedi_enkf_num_procs_per_node_observer $jedi_exec ./oma.yaml  ./oma.log 
-   endif
+	 @ ie = 1
+	 while ( $ie <= $ENS_SIZE )
+	    set m3 = `printf %03d $ie` # Each member must have three digits (i.e., 001, 010, 100)
+	    mv ./mpas_en${m3}.nc ./mpas_bak${m3}.nc # rename the background files
+	    ln -sf ./analysis.${mpas_date}_en${m3}.nc ./mpas_en${m3}.nc # YAML looks for ./mpas_en${m3}.nc
+	    @ ie ++
+	 end
+
+	 $run_cmd_jedi -n $jedi_enkf_num_procs_observer -ppn $jedi_enkf_num_procs_per_node_observer $jedi_exec ./oma.yaml  ./oma.log < /dev/null
+      endif # endif do_oma
+\'EOF7\'
 
 else # envar, bump
-   $run_cmd_jedi -n $jedi_variational_num_procs -ppn $jedi_variational_num_procs_per_node $jedi_exec $full_yaml_file  ./da.log 
+   csh << \'EOF8\'
+      source $jedi_environment_file
+      if ( $?mpasjedi_library_path ) setenv LD_LIBRARY_PATH ${mpasjedi_library_path}:$LD_LIBRARY_PATH # need path of library on derecho
+      $run_cmd_jedi -n $jedi_variational_num_procs -ppn $jedi_variational_num_procs_per_node $jedi_exec $full_yaml_file  ./da.log < /dev/null
+\'EOF8\'
 endif
+
 #$run_cmd_jedi ${jedi_exec} ./input.yaml  ./da.log
 
 if ( $status != 0 ) then
@@ -966,10 +977,6 @@ if ( $status != 0 ) then
 endif
 
 if ( $JEDI_ANALYSIS_TYPE == bump ) exit # no need to go any farther if this is for BUMP
-
-# Done running MPAS-JEDI, so source our main environment
-source $default_environment_file # From driver
-unsetenv GFORTRAN_CONVERT_UNIT F_UFMTENDIAN  OMP_NUM_THREADS
 
 #-------------------------------
 # JEDI has run. Deal with output

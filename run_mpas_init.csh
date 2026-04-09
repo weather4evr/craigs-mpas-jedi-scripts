@@ -25,7 +25,7 @@ set sdate = `echo "$START_DATE_MPAS" | cut -c 1-13` # e.g., 2025-05-23_00
 ########
 if ( $RUN_STAGE == deterministic ) then
    set UNGRIB_OUTPUT_DIR = ${UNGRIB_OUTPUT_DIR_DETERMINISTIC}/${DATE} # Where output of ungrib (input to here) is located
-   set rundir = ${MPAS_INIT_DETERMINISTIC_OUTPUT_DIR_TOP}/${DATE}
+   setenv rundir   ${MPAS_INIT_DETERMINISTIC_OUTPUT_DIR_TOP}/${DATE}
    set mpas_static_data_file =  $mpas_static_data_file_deterministic
    set mpas_invariant_file =  $mpas_invariant_file_deterministic
    set GRID_FILE_NETCDF =     $grid_file_netcdf_deterministic
@@ -38,7 +38,7 @@ else if ( $RUN_STAGE == ensemble ) then
    set mem = $PBS_ARRAY_INDEX #PBS with "-J" flag (PBS pro)
 
    set UNGRIB_OUTPUT_DIR = ${UNGRIB_OUTPUT_DIR_ENS}/${DATE}/ens_${mem} # Where output of ungrib (input to here) is located
-   set rundir = ${MPAS_INIT_ENS_OUTPUT_DIR_TOP}/${DATE}/ens_${mem}
+   setenv rundir   ${MPAS_INIT_ENS_OUTPUT_DIR_TOP}/${DATE}/ens_${mem}
    set mpas_static_data_file =  $mpas_static_data_file_ens
    set mpas_invariant_file =  $mpas_invariant_file_ens
    set GRID_FILE_NETCDF =     $grid_file_netcdf_ens
@@ -55,34 +55,20 @@ mkdir -p $rundir
 cd $rundir
 rm -f ./*.err # clean-up any error files from last time
 
-# deal with the environment
-ln -sf $mpas_environment_file . # keep to have a copy
-source $mpas_environment_file
-
-# init_atmosphere_model in mpas-bundle seems to be a little-endian compile, 
-#  so unset the big endian variables we may have just sourced
-#  if we didn't just source them, these lines won't hurt
-unsetenv GFORTRAN_CONVERT_UNIT #'native;big_endian:101-200'
-unsetenv F_UFMTENDIAN #'big:101-200'
-
-# cd again to $rundir; under some strange conditions, probably a combination
-# of job arrays on derecho, and possible use of 'pwd' in $mpas_environment_file
-# (if $mpas_environment_file ==> jedi_environment), things can end up in the
-# wrong directory. pretty strange, but just do it.
-cd $rundir
-
 if ( $mpas_compiled_within_jedi =~ *true* || $mpas_compiled_within_jedi =~ *TRUE* ) then
   #ln -sf ${MPAS_CODE_DIR}/build/mpas-bundle/bin/mpas_init_atmosphere ./init_atmosphere_model
    set exec = `find $MPAS_JEDI_BUNDLE_DIR -name mpas_init_atmosphere`
    ln -sf $exec[1] ./init_atmosphere_model
-   set this_run_cmd = $run_cmd_jedi
-  #setenv GFORTRAN_CONVERT_UNIT 'native;big_endian:101-200' # needed for gfortran compiler
-  #setenv F_UFMTENDIAN 'big:101-200' # maybe needed for intel compiler
-   if ( $?mpasjedi_library_path ) setenv LD_LIBRARY_PATH ${mpasjedi_library_path}:$LD_LIBRARY_PATH # need path of library on derecho
+   setenv this_run_cmd   $run_cmd_jedi
+   setenv my_mpas_environment_file $jedi_environment_file
 else
    ln -sf ${MPAS_CODE_DIR}/init_atmosphere_model .
-   set this_run_cmd = $run_cmd
+   setenv this_run_cmd   $run_cmd
+   setenv my_mpas_environment_file $mpas_environment_file
 endif
+
+# Link environment file
+ln -sf $my_mpas_environment_file . # link to have in working directory, and we will 'source' it in sub-shell
 
 ln -sf ${MPAS_GRID_INFO_DIR}/${graph_info_prefx}* .
 if ( $?vert_levels_file ) then
@@ -94,6 +80,8 @@ endif
 # Third  iteration : Interpolate meteorological data onto domain with proper number of vertical levels
 # Fourth iteration : Make boundary conditions
 foreach iter ( static_data  sst_data   met_data    met_data_lbcs )
+
+   setenv iterEnv $iter # just for the sub-shell below
 
    # Assume all init_atmosphere stages are .false. each time through loop
    # Set things to .true. as needed
@@ -202,15 +190,31 @@ foreach iter ( static_data  sst_data   met_data    met_data_lbcs )
    # -----------------------
    # Run MPAS initialization
    # -----------------------
-   cd $rundir
-   $this_run_cmd -n $mpas_init_num_procs -ppn $mpas_init_num_procs_per_node ./init_atmosphere_model # mpiexec -n 128 -ppn 128
-   #$this_run_cmd ./init_atmosphere_model # this was used on Cheyenne
+   # open a csh subshell. using 'EOF' (in quotes) allows environmental variables to come in only,
+   # without expanding the subshell before it executes.
+   # closing 'EOF' can't have any spaces or tabs before or after it
+   # because of picky csh syntax, we should escape the single quotes
+   csh -f << \'EOF0\'
+      set noglob # just do this to avoid a bug on Derecho when submitting a job array
+      source $my_mpas_environment_file
+      if ( $mpas_compiled_within_jedi == true || $mpas_compiled_within_jedi == .true. ) then
+         if ( $?mpasjedi_library_path ) setenv LD_LIBRARY_PATH ${mpasjedi_library_path}:$LD_LIBRARY_PATH # need path of library on derecho
+      endif
+      # init_atmosphere_model in mpas-bundle seems to be a little-endian compile, 
+      #  so unset the big endian variables we may have just sourced
+      #  if we didn't just source them, these lines won't hurt
+      unsetenv GFORTRAN_CONVERT_UNIT #'native;big_endian:101-200'
+      unsetenv F_UFMTENDIAN #'big:101-200'
 
-   # Error check
-   if ( $status != 0 ) then
-      echo "MPAS initialization failed for iteration ${iter}."
-      exit 1
-   endif
+      cd $rundir #just do it, because of bug on Derecho when submitting job arrays that will 'cd' to an unexpected place.
+      $this_run_cmd -n $mpas_init_num_procs -ppn $mpas_init_num_procs_per_node ./init_atmosphere_model < /dev/null # mpiexec -n 128 -ppn 128
+      #$this_run_cmd ./init_atmosphere_model # this was used on Cheyenne
+      # Error check
+      if ( $status != 0 ) then
+	 echo "MPAS initialization failed for iteration ${iterEnv}."
+	 exit 1
+      endif
+\'EOF0\'
 
    # Make $mpas_static_data_file and $mpas_invariant_file
    if ( $iter == static_data ) then

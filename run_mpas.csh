@@ -104,7 +104,7 @@ if ( $RUN_STAGE == forecast ) then
       setenv num_mpas_cells           $num_mpas_cells_free_fcst
       set lbc_dir_top = $MPAS_INIT_FREE_FCST_OUTPUT_DIR_TOP
       set need_to_interpolate = true
-      set mpas_num_procs = $mpas_num_procs_free_fcst # mpas_num_procs_free_fcst environmental variable
+      setenv mpas_num_procs   $mpas_num_procs_free_fcst # mpas_num_procs_free_fcst environmental variable
    endif
 endif
 
@@ -129,18 +129,18 @@ while ( $mem <= $mem_end && $mem <= $ENS_SIZE )
    # ----------------------------------
    if ( $MPAS_STAGE == ensemble ) then
       if ( $RUN_STAGE == next_cycle ) then
-	 set rundir = ${EXP_DIR_TOP}/${DATE}/advance_ensemble/${mem}
+	 setenv rundir   ${EXP_DIR_TOP}/${DATE}/advance_ensemble/${mem}
       else if ( $RUN_STAGE == forecast ) then
-	 set rundir = ${EXP_DIR_TOP}/${DATE}/fc/${mem}
+	 setenv rundir   ${EXP_DIR_TOP}/${DATE}/fc/${mem}
       endif
    else if ( $MPAS_STAGE == deterministic ) then
       #if RUN_STAGE == forecast, put fc_${FCST_RANGE}h in directory?
       if ( $MPAS_INPUT_SOURCE == external ) then
-         set rundir = ${EXP_DIR_TOP}/${DATE}/fc/${EXTERNAL_ICS_DETERMINISTIC}_initial_conditions
+         setenv rundir   ${EXP_DIR_TOP}/${DATE}/fc/${EXTERNAL_ICS_DETERMINISTIC}_initial_conditions
       else if ( $MPAS_INPUT_SOURCE == envar ) then
-         set rundir = ${EXP_DIR_TOP}/${DATE}/fc/envar
+         setenv rundir   ${EXP_DIR_TOP}/${DATE}/fc/envar
       else if ( $MPAS_INPUT_SOURCE == enkf ) then
-         set rundir = ${EXP_DIR_TOP}/${DATE}/fc/enkf_ens_mean
+         setenv rundir   ${EXP_DIR_TOP}/${DATE}/fc/enkf_ens_mean
       endif
    endif
 
@@ -265,7 +265,7 @@ while ( $mem <= $mem_end && $mem <= $ENS_SIZE )
         "'rho_base','theta_base','isice_lu','iswater_lu','sst','vegfra','seaice','xice','xland','dzs','ter'"
 
       rm -f ./namelist.input
-      cat > ./namelist.input << EOF
+      cat > ./namelist.input << EOF1
 &share
 source_grid_template_file = '${source_grid_template_file}'
 destination_grid_template_file = '${destination_grid_template_file}'
@@ -278,7 +278,7 @@ do_vertical_interpolation = .true.
 variables_to_copy_from_destination_file = ${variables_to_copy_from_destination_file}
 exit_on_landuse_mismatch = .false.
 /
-EOF
+EOF1
 
        ln -sf $MPAS2MPAS_EXEC ./mpas2mpas.exe
        rm -f ./interpolated_file.nc
@@ -300,14 +300,12 @@ EOF
      #ln -sf ${MPAS_CODE_DIR}/build/mpas-bundle/bin/mpas_atmosphere ./atmosphere_model
       set exec = `find ${MPAS_JEDI_BUNDLE_DIR}/build -name mpas_atmosphere` # could be several places
       ln -sf $exec[1] ./atmosphere_model
-      set this_run_cmd = $run_cmd_jedi
-      # If these aren't in $mpas_environment_file, they need to be set
-      setenv GFORTRAN_CONVERT_UNIT 'native;big_endian:101-200' # needed for gfortran compiler
-      setenv F_UFMTENDIAN 'big_endian:101-200' # maybe needed for intel compiler
-      if ( $?mpasjedi_library_path ) setenv LD_LIBRARY_PATH ${mpasjedi_library_path}:$LD_LIBRARY_PATH # need path of library on derecho
+      setenv this_run_cmd   $run_cmd_jedi
+      setenv my_mpas_environment_file $jedi_environment_file
    else
       ln -sf ${MPAS_CODE_DIR}/atmosphere_model .
-      set this_run_cmd = $run_cmd
+      setenv this_run_cmd   $run_cmd
+      setenv my_mpas_environment_file $mpas_environment_file
    endif
    ln -sf ${MPAS_TABLE_DIR}/*.TBL .
    ln -sf ${MPAS_TABLE_DIR}/*.DBL .
@@ -360,27 +358,28 @@ EOF
    $STREAMS_TEMPLATE mpas $rundir # Streams file
 
    #-------------------------------------------------------------
-   # Run MPAS; Important to source default environment when done
-   #   because $TOOL_DIR/da_advance_time.exe could be called
+   # Run MPAS
    #-------------------------------------------------------------
-   ln -sf $mpas_environment_file # have a copy of this in working directory for testing
-   source $mpas_environment_file
+   ln -sf $my_mpas_environment_file # have a copy of this in working directory, and we will 'source' in the sub-shell
 
-   # cd again to $rundir; under some strange conditions, probably a combination
-   # of job arrays on derecho, and possible use of 'pwd' in $mpas_environment_file
-   # (if $mpas_environment_file ==> jedi_environment), things can end up in the
-   # wrong directory. pretty strange, but just do it.
-   cd $rundir
-
-   $this_run_cmd -n $mpas_num_procs -ppn $mpas_num_procs_per_node ./atmosphere_model # mpiexec -n 144 -ppn 32
-  #$this_run_cmd ./atmosphere_model # Run the model! ; this was used on Cheyenne
-
-   if ( $status != 0 ) then
-      echo "MPAS failed. Exit." >> ./FAIL
-      exit 6
-   endif
-
-   source $default_environment_file
+   # open a csh subshell. using 'EOF' (in quotes) allows environmental variables to come in only, 
+   # without expanding the subshell before it executes.
+   # closing 'EOF' can't have any spaces or tabs before or after it
+   # because of picky csh syntax, we should escape the single quotes
+   csh -f << \'EOF2\'
+      set noglob # just do this to avoid a bug on Derecho when submitting a job array
+      source $my_mpas_environment_file
+      if ( $mpas_compiled_within_jedi == true || $mpas_compiled_within_jedi == .true. ) then
+         if ( $?mpasjedi_library_path ) setenv LD_LIBRARY_PATH ${mpasjedi_library_path}:$LD_LIBRARY_PATH # need path of library on derecho
+      endif
+      cd $rundir #just do it, because of bug on Derecho when submitting job arrays that will 'cd' to an unexpected place.
+      $this_run_cmd -n $mpas_num_procs -ppn $mpas_num_procs_per_node ./atmosphere_model < /dev/null # mpiexec -n 144 -ppn 32
+      ##$this_run_cmd ./atmosphere_model # Run the model! ; this was used on Cheyenne
+      if ( $status != 0 ) then
+	 echo "MPAS failed. Exit." >> ./FAIL
+	 exit 6
+      endif
+\'EOF2\'
 
    if ( 1 == 2 ) then
    if ( $RUN_STAGE == next_cycle ) then
