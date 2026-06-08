@@ -38,8 +38,10 @@ else
 endif
 
 # If first_date, only option is to run a cold-start forecast from external ICs
+# Also use FCST_RANGE = $FIRST_DATE_FCST_RANGE
 if ( $DATE == $FIRST_DATE )  then
    set MPAS_INPUT_SOURCE = external
+   setenv FCST_RANGE  $FIRST_DATE_FCST_RANGE
    echo "Running an MPAS forecast from external ensemble on FIRST_DATE = $FIRST_DATE"
 endif
 

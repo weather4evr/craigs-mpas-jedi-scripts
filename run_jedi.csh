@@ -46,6 +46,12 @@ if ( $DATE == $FIRST_DATE ) then
    endif
 endif
 
+# Figure out the first allowable analysis time (i.e., the time after $FIRST_DATE where it's okay to start DA cycles)
+# $FIRST_DATE_FCST_RANGE from driver.csh
+set syyyymmdd  = `echo "${FIRST_DATE}" | cut -c 1-8`
+set shhmin     = `echo "${FIRST_DATE}" | cut -c 9-12`
+set first_allowable_analysis_time = `date -d "${syyyymmdd} ${shhmin} + ${FIRST_DATE_FCST_RANGE} minutes" +%Y%m%d%H%M`
+
 # Do we need the first guess at multiple times for 4DEnVar?
 if ( $FOUR_D_ENVAR =~ *true* || $FOUR_D_ENVAR =~ *TRUE* ) then
    set relative_fcst_minutes = ( $ens_fcst_mins ) # Relative forecast minutes compared to $DATE (e.g., -120, -60, 0, 60, 120)
@@ -161,7 +167,7 @@ endif
 # Set working directory and go to it
 #-------------------------------------
 if ( $JEDI_ANALYSIS_TYPE == bump ) then
-   setenv JEDI_RUN_DIR   $BE_DIR # $BE_DIR from driver.csh
+   setenv JEDI_RUN_DIR   $BE_DIR_ENS # $BE_DIR_ENS from driver.csh
 else if ( $JEDI_ANALYSIS_TYPE == forward_operator_for_forecast_verif ) then # Special case, so special directory
    setenv JEDI_RUN_DIR   ${EXP_DIR_TOP}/${DATE}/${dir_prefx}/f${FHR} # FHR from environment
 else if ( $JEDI_ANALYSIS_TYPE == enkf_prior_mean ) then
@@ -189,7 +195,11 @@ mkdir -p $jedi_output_dir
 # -------------------------------------------------------------------------------
 if ( $need_prior_ensemble =~ *true* || $need_prior_ensemble =~ *TRUE* ) then
 
-   set PREV_ENS_DIR_TOP = ${EXP_DIR_TOP}/${PREV_DATE}/advance_ensemble # Location of prior ensemble when cycling
+   if ( $DATE == $first_allowable_analysis_time ) then
+      set PREV_ENS_DIR_TOP = ${EXP_DIR_TOP}/${FIRST_DATE}/advance_ensemble/${EXTERNAL_ICS_ENS}_initial_conditions
+   else
+      set PREV_ENS_DIR_TOP = ${EXP_DIR_TOP}/${PREV_DATE}/advance_ensemble # Location of prior ensemble when cycling
+   endif
 
    foreach minute ( $relative_fcst_minutes )
       set this_mpas_date = `date -d "${yyyymmdd} ${hh}${minutes} + ${minute} minutes" +%Y-%m-%d_%H.%M.%S` # MPAS format; valid time of interest
@@ -259,6 +269,9 @@ if ( $need_prior_deterministic_background =~ *true* || $need_prior_deterministic
 	 if ( $envar_det_fg_source == cycle ) then
 	    set directory = ${EXP_DIR_TOP}/${PREV_DATE}/fc/envar
 	    set fname = ${file_type}.${this_mpas_date}.nc
+	    if ( $DATE == $first_allowable_analysis_time ) then
+               set directory = ${EXP_DIR_TOP}/${FIRST_DATE}/fc/${EXTERNAL_ICS_DETERMINISTIC}_initial_conditions
+            endif
 	 else if ( $envar_det_fg_source == cold_start ) then
 	    set directory = ${MPAS_INIT_DETERMINISTIC_OUTPUT_DIR_TOP}/${DATE}
 	    set fname = init.nc
@@ -316,16 +329,16 @@ endif #if ( $need_prior_deterministic_background =~ *true* || $need_prior_determ
 # Get background error files
 if ( $bump_files_needed =~ *true* || $bump_files_needed =~ *TRUE* ) then
    set p6 = `printf %06d $jedi_variational_num_procs` # 6 digits
-   set num_bump_files = `ls ${BE_DIR}/${BE_PREFIX}*grids_local*${p6}-*.nc | wc -l`
+   set num_bump_files = `ls ${BE_DIR_ENS}/${BE_PREFIX_ENS}*grids_local*${p6}-*.nc | wc -l`
    if ( $num_bump_files != $jedi_variational_num_procs ) then
-      ls ${BE_DIR}/${BE_PREFIX}*
-      echo "There are $num_bump_files bump files in ${BE_DIR}"
+      ls ${BE_DIR_ENS}/${BE_PREFIX_ENS}*
+      echo "There are $num_bump_files bump files in ${BE_DIR_ENS}"
       echo "But you are running JEDI with ${jedi_variational_num_procs} processors."
       echo "These should be equal. Need to change number of processors. Try again."
       exit 5
    endif
    mkdir -p ./bump_files
-   ln -sf ${BE_DIR}/${BE_PREFIX}*${p6}-*.nc ./bump_files # Link the files
+   ln -sf ${BE_DIR_ENS}/${BE_PREFIX_ENS}*${p6}-*.nc ./bump_files # Link the files
 endif
 
 # Link necessary MPAS model files

@@ -35,18 +35,18 @@ setenv jedi_walltime_variational            10
    # LETKF in "observer" mode. Need to use the same number of processors for the mean and members
    # But, number of processors per node can differ for mean and the members
 setenv jedi_enkf_num_procs_observer_mean      512   # JEDI EnKF (LETKF/GETKF)
-setenv jedi_enkf_num_procs_observer_members   512 #256   
+setenv jedi_enkf_num_procs_observer_members   $jedi_enkf_num_procs_observer_mean
 setenv jedi_enkf_num_procs_per_node_observer_mean 64
 setenv jedi_enkf_num_procs_per_node_observer_members $num_procs_per_node
 setenv jedi_walltime_enkf_observer       9
 
-   # LETKF "solver" ; these are used for just solver and for everything if all_at_once == true
+   # LETKF "solver" ; these are used for just solver and for everything if all_at_once == true (see below)
 setenv jedi_enkf_num_procs_solver        1024  # JEDI EnKF (LETKF/GETKF)
 setenv jedi_enkf_num_procs_per_node_solver $num_procs_per_node
 setenv jedi_walltime_enkf_solver         20
 
 # Account numbers and queues
-setenv mpas_account  "NMMM0035" 
+setenv mpas_account  "NMMM0035"
 setenv jedi_account  $mpas_account
 
 set jedi_queue = "main"  #full name: main@chadmin1.ib0.cheyenne.ucar.edu" 
@@ -98,7 +98,7 @@ setenv   WPS_DIR               ${REL_DIR}/WRF/derecho/WPS4.1_parallel   # Need u
 
 setenv ENS_AVERAGE_EXEC        /glade/u/home/schwartz/average_netcdf_files_parallel_mpas_efficient.x # MPI executable to take an average of MPAS NETCDF files
 setenv NETCDF_CONCATENATE_EXEC /glade/u/home/schwartz/concatenate_netcdf/concatenate_netcdf_files.x # MPI executable to concatenate UFO files from all processors into one file
-setenv THINNING_HofX_EXEC      /glade/u/home/schwartz/MPAS_JEDI/scripts/thinning_hofx.py
+setenv THINNING_HofX_EXEC      ${SCRIPT_DIR}/thinning_hofx.py
 
 setenv jedi_environment_file  ${MPAS_JEDI_BUNDLE_DIR}/code/mpas-bundle/env-setup/gnu-derecho.csh     # File with the JEDI environment. Must already be there.
 setenv mpasjedi_library_path  ${MPAS_JEDI_BUNDLE_DIR}/build/lib  # Full path location to libmpasjedi.so that is built when compiling JEDI; needed on Derecho
@@ -123,7 +123,7 @@ setenv python_close_env_string "conda deactivate"   # ""
 setenv DETERMINISTIC_MESH   20_2km_small   # EnVar mesh, typically something like 15km_mesh 
 setenv ENSEMBLE_MESH   $DETERMINISTIC_MESH # 15km_mesh   # EnKF/ensemble mesh; could be same as $DETERMINISTIC_MESH
 
-setenv EXPT           expt_tcwa2_ahi+sfc+radar #expt_tcwa2_sfc+radar #expt_tcwa2_ahi+sfc+radar #name of the experiment
+setenv EXPT           expt_tcwa2_sfc+radar+ahi #expt_tcwa2_sfc+radar #expt_tcwa2_ahi+sfc+radar #name of the experiment
 setenv EXP_DIR_TOP   /glade/derecho/scratch/schwartz/CWA/2026/${DETERMINISTIC_MESH}/${EXPT}  #Directory where most things run
 
 ################################################################################
@@ -141,7 +141,7 @@ setenv EXP_DIR_TOP   /glade/derecho/scratch/schwartz/CWA/2026/${DETERMINISTIC_ME
 #  to be made in this case, and you will submit lots of jobs to the system.
 ################################################################################
 
-setenv FIRST_DATE    202206240000 # Fixed for a set of experiments. First date of an MPAS forecast (cold-start forecast initialized at this time to start things off).
+setenv FIRST_DATE    202206221800 # Fixed for a set of experiments. First date of an MPAS forecast (cold-start forecast initialized at this time to start things off).
 setenv LAST_DATE     202206241200 # Fixed for a set of experiments. The last date for an analysis or forecast.
 
 setenv start_init    $start_init # controls the cycling in below loop. should be >= $FIRST_DATE
@@ -150,6 +150,10 @@ setenv end_init      $start_init
 setenv CYCLE_PERIOD   60  #Time between analyses in minutes
 setenv FCST_RANGE_DA  $CYCLE_PERIOD   #Length of MPAS forecasts during cycling (minutes), should be >= $CYCLE_PERIOD
 setenv FCST_RANGE     720   #Length of MPAS FREE FORECASTS in minutes; also used for LBC length if regional mesh
+setenv FIRST_DATE_FCST_RANGE 360  # minutes. At $FIRST_DATE, you can only run a cold-start forecast. How long is that forecast? First valid time for DA is
+                           # ($FIRST_DATE + $FIRST_DATE_FCST_RANGE). Usually set to $CYCLE_PERIOD, but can be > $CYCLE_PERIOD 
+			   # if a longer spinup before starting DA cycles is desired.  This variable is used in run_jedi.csh to point to the right files.
+                           # If $DATE == $FIRST_DATE, this value is also used in run_mpas.csh
 setenv diag_output_interval    $CYCLE_PERIOD # Frequency to output diag.nc files (minutes)
 setenv restart_output_interval $CYCLE_PERIOD # Frequency to output restart.nc or mpasout.nc files (minutes)
 setenv use_2stream_IO   true # If true, use 2-stream MPAS/IO, and produce mpasout* files, using output stream "da_state" and "invariant" files
@@ -324,8 +328,8 @@ setenv FOUR_D_ENVAR   false  # (true,false) ... whether to use 4DEnVar
    setenv    ens_fcst_mins    "-180 -120 -60 0 60 120 180"  # Forecast minutes relative to analysis time for FGAT/4DEnVar
 
 # background error covariance for EnVar via BUMP, which uses $corrlength_model_space, $vertloc_length_model_space, and $vertloc_coord_model_space_bump
-setenv BE_DIR         /glade/derecho/scratch/schwartz/CWA/2025/${ENSEMBLE_MESH}/bump_files_${jedi_variational_num_procs}cpus # location of BUMP files
-setenv BE_PREFIX      bumploc_${corrlength_model_space}km_${vertloc_length_model_space}${vertloc_coord_model_space_bump} # prefix of BUMP files
+setenv BE_DIR_ENS     /glade/derecho/scratch/schwartz/CWA/2025/${ENSEMBLE_MESH}/bump_files_${jedi_variational_num_procs}cpus # location of BUMP files
+setenv BE_PREFIX_ENS  bumploc_${corrlength_model_space}km_${vertloc_length_model_space}${vertloc_coord_model_space_bump} # prefix of BUMP files
 
 # ----------------------
 # Stuff for radiance DA
@@ -537,7 +541,11 @@ while ( $DATE <= $end_init )
 
    set yyyymmdd = `echo "${DATE}" | cut -c 1-8`
    set hhmin    = `echo "${DATE}" | cut -c 9-12`
-   setenv DATE `date -d "${yyyymmdd} ${hhmin} + ${CYCLE_PERIOD} minutes" +%Y%m%d%H%M` #advance date
+   if ( $DATE == $FIRST_DATE ) then
+      setenv DATE `date -d "${yyyymmdd} ${hhmin} + ${FIRST_DATE_FCST_RANGE} minutes" +%Y%m%d%H%M` #advance date
+   else
+      setenv DATE `date -d "${yyyymmdd} ${hhmin} + ${CYCLE_PERIOD} minutes" +%Y%m%d%H%M` #advance date
+   endif
 
 end
 
