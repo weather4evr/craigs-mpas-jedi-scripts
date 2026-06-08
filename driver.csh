@@ -37,16 +37,16 @@ setenv jedi_walltime_variational            10
 setenv jedi_enkf_num_procs_observer_mean      512   # JEDI EnKF (LETKF/GETKF)
 setenv jedi_enkf_num_procs_observer_members   512 #256   
 setenv jedi_enkf_num_procs_per_node_observer_mean 64
-setenv jedi_enkf_num_procs_per_node_observer_members 128 #$num_procs_per_node
+setenv jedi_enkf_num_procs_per_node_observer_members $num_procs_per_node
 setenv jedi_walltime_enkf_observer       9
 
    # LETKF "solver" ; these are used for just solver and for everything if all_at_once == true
 setenv jedi_enkf_num_procs_solver        1024  # JEDI EnKF (LETKF/GETKF)
-setenv jedi_enkf_num_procs_per_node_solver 64 #$num_procs_per_node
+setenv jedi_enkf_num_procs_per_node_solver $num_procs_per_node
 setenv jedi_walltime_enkf_solver         20
 
 # Account numbers and queues
-setenv mpas_account  "NMMM0021" 
+setenv mpas_account  "NMMM0035" 
 setenv jedi_account  $mpas_account
 
 set jedi_queue = "main"  #full name: main@chadmin1.ib0.cheyenne.ucar.edu" 
@@ -87,8 +87,8 @@ setenv   myname      ${SCRIPT_DIR}/driver.csh # Full pathname of this script; ne
 
 set REL_DIR = /glade/work/schwartz # useful variable for specifying paths; otherwise not used
 
-#setenv   MPAS_JEDI_BUNDLE_DIR  /glade/campaign/mmm/parc/jban/CWA/2025/bundle/basedon_v302 #${REL_DIR}/JEDI/derecho/2025may14_mpas_bundle_rkong
-setenv   MPAS_JEDI_BUNDLE_DIR  /glade/work/schwartz/JEDI/derecho/mpas_bundle_SP_jban_24Aug2025
+#setenv   MPAS_JEDI_BUNDLE_DIR  /glade/work/schwartz/JEDI/derecho/mpas_bundle_SP_jban_24Aug2025 # CWA 2025
+setenv   MPAS_JEDI_BUNDLE_DIR  /glade/campaign/mmm/parc/jban/CWA/2026/mpas_bundle_SP_jban_24Aug2025_with_Harnish_errModel_SfcCorrected # CWA 2026
 #setenv   MPAS_JEDI_BUNDLE_DIR  /glade/campaign/mmm/parc/ivette/pandac/codeBuild/mpasBundle_13May2025_IRvarbc_obsErrors_btlim
 setenv   MPAS_CODE_DIR         $MPAS_JEDI_BUNDLE_DIR #${REL_DIR}/MPAS/derecho/MPASv7.0_20210111_mpas_bundle_scaleAwareNewTiedtke_withUpdatedForcing
 # Specify location of the .TBL, .DBL, and 'DATA' files needed by MPAS. They should be consistent with the MPAS build.
@@ -100,8 +100,6 @@ setenv ENS_AVERAGE_EXEC        /glade/u/home/schwartz/average_netcdf_files_paral
 setenv NETCDF_CONCATENATE_EXEC /glade/u/home/schwartz/concatenate_netcdf/concatenate_netcdf_files.x # MPI executable to concatenate UFO files from all processors into one file
 setenv THINNING_HofX_EXEC      /glade/u/home/schwartz/MPAS_JEDI/scripts/thinning_hofx.py
 
-# Environments--assumes you have a "default" environment that can be "restore"d ('module restore default'). This is just the general environment you use; make one if you don't have one.
-#setenv default_environment_file   ${SCRIPT_DIR}/default_environment.txt # Default login environment; will be created then sourced.
 setenv jedi_environment_file  ${MPAS_JEDI_BUNDLE_DIR}/code/mpas-bundle/env-setup/gnu-derecho.csh     # File with the JEDI environment. Must already be there.
 setenv mpasjedi_library_path  ${MPAS_JEDI_BUNDLE_DIR}/build/lib  # Full path location to libmpasjedi.so that is built when compiling JEDI; needed on Derecho
 setenv run_cmd_jedi           mpiexec # MPI command to run JEDI, could differ from $run_cmd (above) that is based on the machine
@@ -125,8 +123,8 @@ setenv python_close_env_string "conda deactivate"   # ""
 setenv DETERMINISTIC_MESH   20_2km_small   # EnVar mesh, typically something like 15km_mesh 
 setenv ENSEMBLE_MESH   $DETERMINISTIC_MESH # 15km_mesh   # EnKF/ensemble mesh; could be same as $DETERMINISTIC_MESH
 
-setenv EXPT           expt_tcwa2_ahiOnly #expt_tcwa2_RADARonly_vertInterp #expt_tcwa2_ahi+RADAR_PPRO       #expt_tcwa2_ahi+RADAR #expt_tcwa2_RADARonly #name of the experiment
-setenv EXP_DIR_TOP   /glade/derecho/scratch/schwartz/CWA/2025/${DETERMINISTIC_MESH}/${EXPT}  #Directory where most things run
+setenv EXPT           expt_tcwa2_ahi+sfc+radar #expt_tcwa2_sfc+radar #expt_tcwa2_ahi+sfc+radar #name of the experiment
+setenv EXP_DIR_TOP   /glade/derecho/scratch/schwartz/CWA/2026/${DETERMINISTIC_MESH}/${EXPT}  #Directory where most things run
 
 ################################################################################
 # Time/Experiment/Cycling control 
@@ -143,15 +141,15 @@ setenv EXP_DIR_TOP   /glade/derecho/scratch/schwartz/CWA/2025/${DETERMINISTIC_ME
 #  to be made in this case, and you will submit lots of jobs to the system.
 ################################################################################
 
-setenv FIRST_DATE    202206221800 # Fixed for a set of experiments. First date of an MPAS forecast (cold-start forecast initialized at this time to start things off).
-setenv LAST_DATE     202206242100 # Fixed for a set of experiments. The last date for an analysis or forecast.
+setenv FIRST_DATE    202206240000 # Fixed for a set of experiments. First date of an MPAS forecast (cold-start forecast initialized at this time to start things off).
+setenv LAST_DATE     202206241200 # Fixed for a set of experiments. The last date for an analysis or forecast.
 
 setenv start_init    $start_init # controls the cycling in below loop. should be >= $FIRST_DATE
 setenv end_init      $start_init
 
 setenv CYCLE_PERIOD   60  #Time between analyses in minutes
 setenv FCST_RANGE_DA  $CYCLE_PERIOD   #Length of MPAS forecasts during cycling (minutes), should be >= $CYCLE_PERIOD
-setenv FCST_RANGE     360   #Length of MPAS FREE FORECASTS in minutes; also used for LBC length if regional mesh
+setenv FCST_RANGE     720   #Length of MPAS FREE FORECASTS in minutes; also used for LBC length if regional mesh
 setenv diag_output_interval    $CYCLE_PERIOD # Frequency to output diag.nc files (minutes)
 setenv restart_output_interval $CYCLE_PERIOD # Frequency to output restart.nc or mpasout.nc files (minutes)
 setenv use_2stream_IO   true # If true, use 2-stream MPAS/IO, and produce mpasout* files, using output stream "da_state" and "invariant" files
@@ -176,10 +174,16 @@ setenv  STREAMS_TEMPLATE     ${SCRIPT_DIR}/streams_template.csh   #Most streams 
 setenv  JEDI_YAML_PLUGS      ${SCRIPT_DIR}/yamlPlugs              #Directory with lots of .yaml.csh files. Have a look; they control the JEDI configurations.
 
     # These probably don't need changing very often
-setenv  JEDI_GEOVARS_YAML    ${MPAS_JEDI_BUNDLE_DIR}/code/mpas-bundle/mpas-jedi/test/testinput/namelists/geovars.yaml
-setenv  JEDI_KEPTVARS_YAML   ${MPAS_JEDI_BUNDLE_DIR}/code/mpas-bundle/mpas-jedi/test/testinput/namelists/keptvars.yaml
-setenv  OBSOP_NAME_MAP_YAML  ${MPAS_JEDI_BUNDLE_DIR}/code/mpas-bundle/mpas-jedi/test/testinput/obsop_name_map.yaml
-setenv  RADAR_DA_COEFFS       /glade/derecho/scratch/jban/regional_mpasjedi/jban_letkf_2kmTW_tcwa2/MPAS-Workflow/config/mpas
+#setenv  JEDI_GEOVARS_YAML    ${MPAS_JEDI_BUNDLE_DIR}/code/mpas-bundle/mpas-jedi/test/testinput/namelists/geovars.yaml
+#setenv  JEDI_KEPTVARS_YAML   ${MPAS_JEDI_BUNDLE_DIR}/code/mpas-bundle/mpas-jedi/test/testinput/namelists/keptvars.yaml
+#setenv  OBSOP_NAME_MAP_YAML  ${MPAS_JEDI_BUNDLE_DIR}/code/mpas-bundle/mpas-jedi/test/testinput/obsop_name_map.yaml
+#setenv  RADAR_DA_COEFFS       /glade/derecho/scratch/jban/regional_mpasjedi/jban_letkf_2kmTW_tcwa2/MPAS-Workflow/config/mpas
+
+setenv  JEDI_GEOVARS_YAML    ${JEDI_YAML_PLUGS}/geovars.yaml
+setenv  JEDI_KEPTVARS_YAML   ${JEDI_YAML_PLUGS}/keptvars.yaml
+setenv  OBSOP_NAME_MAP_YAML  ${JEDI_YAML_PLUGS}/obsop_name_map.yaml
+setenv  RADAR_DA_COEFFS_DIR  ${SCRIPT_DIR}/radar_coeffs # coefficients for radar DA; not always needed
+setenv  JEDI_STREAM_LIST_DIR $SCRIPT_DIR  # location of stream_list.atmosphere.{analysis,background,control,ensemble} that we use during DA (see run_jedi.csh)
 
 #####################################################################################################
 # These control input into the sequence of scripts. Specifically, specify external models to provide
@@ -218,10 +222,10 @@ setenv  OB_DIR  /glade/campaign/mmm/parc/schwartz/CWA/2025/ob  #Top-level direct
 # These directories will be created using the following convention:
 # For deterministic: directories "by date": e.g., /glade/derecho/scratch/schwartz/MPAS/ungrib_deterministic/2023052300
 # For ensemble: directories "by date and ensemble member": e.g., /glade/derecho/scratch/schwartz/MPAS/ungrib_ens/2023052300/ens_3
-setenv UNGRIB_OUTPUT_DIR_DETERMINISTIC  /glade/derecho/scratch/schwartz/CWA/2025/ungrib_deterministic 
-setenv UNGRIB_OUTPUT_DIR_ENS            /glade/derecho/scratch/schwartz/CWA/2025/ungrib_ens 
-setenv MPAS_INIT_DETERMINISTIC_OUTPUT_DIR_TOP  /glade/derecho/scratch/schwartz/CWA/2025/${DETERMINISTIC_MESH}/mpas_init #Top-level directory holding MPAS initialization files (sub-dirs by date)
-setenv MPAS_INIT_ENS_OUTPUT_DIR_TOP            /glade/derecho/scratch/schwartz/CWA/2025/${ENSEMBLE_MESH}/mpas_init #Top-level directory containing ensemble ICs (sub-dirs by date and member)
+setenv UNGRIB_OUTPUT_DIR_DETERMINISTIC  /glade/derecho/scratch/schwartz/CWA/2026/ungrib_deterministic
+setenv UNGRIB_OUTPUT_DIR_ENS            /glade/derecho/scratch/schwartz/CWA/2026/ungrib_ens
+setenv MPAS_INIT_DETERMINISTIC_OUTPUT_DIR_TOP  /glade/derecho/scratch/schwartz/CWA/2026/${DETERMINISTIC_MESH}/mpas_init #Top-level directory holding MPAS initialization files (sub-dirs by date)
+setenv MPAS_INIT_ENS_OUTPUT_DIR_TOP            /glade/derecho/scratch/schwartz/CWA/2026/${ENSEMBLE_MESH}/mpas_init #Top-level directory containing ensemble ICs (sub-dirs by date and member)
 setenv MPAS_INIT_FREE_FCST_OUTPUT_DIR_TOP  $MPAS_INIT_DETERMINISTIC_OUTPUT_DIR_TOP #Top-level directory containing MPAS init files on grid needed for free forecast (sub-dirs by date)
 
 ########################
@@ -272,7 +276,7 @@ setenv   interpolation_weight_file      dummy #weights_30km_mesh_to_15km_mesh.da
 #######################################################
 # MPAS model namelist settings that are not hard-coded
 #######################################################
-setenv time_step_deterministic 12.0 # Seconds.  Typically should be 4-6*dx; use closer to 4 for cycling DA
+setenv time_step_deterministic 10.0 # Seconds.  Typically should be 4-6*dx; use closer to 4 for cycling DA
 setenv time_step_ens         $time_step_deterministic
 setenv time_step_free_fcst   $time_step_deterministic
 setenv radiation_frequency_deterministic  15 # Minutes.  Typically the same as dx (for dx = 15 km, 15 minutes)

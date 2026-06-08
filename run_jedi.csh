@@ -334,9 +334,9 @@ ln -sf ${MPAS_TABLE_DIR}/*.DBL .
 ln -sf ${MPAS_TABLE_DIR}/*DATA .
 set fnames = stream_list.atmosphere.{analysis,background,control,ensemble}
 foreach fname ( $fnames ) 
-   set f = `find $MPAS_JEDI_BUNDLE_DIR -name $fname -type f`
+   set f = `find $JEDI_STREAM_LIST_DIR -name $fname -type f`
    if ( $#f == 0 ) then
-      echo "$fname is missing. Check $MPAS_JEDI_BUNDLE_DIR for it."
+      echo "$fname is missing. Check $JEDI_STREAM_LIST_DIR for it."
       exit
    else
       ln -sf $f .
@@ -366,7 +366,7 @@ ln -sf ${MPAS_GRID_INFO_DIR}/${graph_info_prefx}* .
 ln -sf $JEDI_GEOVARS_YAML   ./geovars.yaml # Some older versions of JEDI don't need this
 ln -sf $JEDI_KEPTVARS_YAML  ./keptvars.yaml
 ln -sf $OBSOP_NAME_MAP_YAML ./obsop_name_map.yaml
-ln -sf ${RADAR_DA_COEFFS}/*.txt . # coefficients for radar DA
+ln -sf ${RADAR_DA_COEFFS_DIR}/*.txt . # coefficients for radar DA
 
 # To get the namelist/streams/YAML files to fill properly,
 # need to force $DATE to valid_time...shouldn't hurt anything by doing here
@@ -780,6 +780,7 @@ if ( $JEDI_ANALYSIS_TYPE =~ *enkf_prior* ) then
 	    sleep 5
 	 endif
       end
+      touch -f jedi_done
 \'EOF3\'
 
   # Done running MPAS-JEDI
@@ -890,6 +891,16 @@ else if ( $JEDI_ANALYSIS_TYPE == enkf_solver ) then
          @ ie ++
       end
 
+      # To keep the order of the obs the same between OMA/OMB, we need to use the "1st_pass" ens mean file for the OMA calculation.
+      # That's because all other H(x) calculations used the "1st_pass" ens mean file as the "obs"
+      foreach inst ( $instruments )
+	 set fname = ${EXP_DIR_TOP}/${DATE}/enkf/ens_mean/dbOut/obsout_omb_${inst}_1st_pass.h5
+	 if ( -e $fname ) then
+            mv ./${inst}_obs_${DATE}.h5 ./${inst}_obs_${DATE}_solver.h5
+            ln -sf $fname ./${inst}_obs_${DATE}.h5
+	 endif
+      end
+
       csh << \'EOF6\'
 	 source $jedi_environment_file
 	 if ( $?mpasjedi_library_path ) setenv LD_LIBRARY_PATH ${mpasjedi_library_path}:$LD_LIBRARY_PATH # need path of library on derecho
@@ -916,7 +927,7 @@ else if ( $JEDI_ANALYSIS_TYPE == enkf_all_at_once ) then
    csh << \'EOF7\'
       source $jedi_environment_file
       if ( $?mpasjedi_library_path ) setenv LD_LIBRARY_PATH ${mpasjedi_library_path}:$LD_LIBRARY_PATH # need path of library on derecho
-      $run_cmd_jedi -n $jedi_enkf_num_procs_observer -ppn $jedi_enkf_num_procs_per_node_observer $jedi_exec ./observer.yaml  ./observer.log < /dev/null
+      $run_cmd_jedi -n $jedi_enkf_num_procs_solver -ppn $jedi_enkf_num_procs_per_node_solver $jedi_exec ./observer.yaml  ./observer.log < /dev/null
       if ( $status != 0 ) then
 	 echo "EnKF observer failed with status = ${status}" >> FAIL
 	 exit 12
@@ -957,7 +968,7 @@ else if ( $JEDI_ANALYSIS_TYPE == enkf_all_at_once ) then
 	    @ ie ++
 	 end
 
-	 $run_cmd_jedi -n $jedi_enkf_num_procs_observer -ppn $jedi_enkf_num_procs_per_node_observer $jedi_exec ./oma.yaml  ./oma.log < /dev/null
+	 $run_cmd_jedi -n $jedi_enkf_num_procs_solver -ppn $jedi_enkf_num_procs_per_node_solver $jedi_exec ./oma.yaml  ./oma.log < /dev/null
       endif # endif do_oma
 \'EOF7\'
 
@@ -989,7 +1000,15 @@ if ( $JEDI_ANALYSIS_TYPE == bump ) exit # no need to go any farther if this is f
 if ( $radiance_str != "" ) then
    foreach prefx ( geovals ydiag )
       ln -sf ./input_${prefx}.nml ./input.nml # program looks for ./input.nml
-      $run_cmd -n $jedi_enkf_num_procs_observer -ppn $jedi_enkf_num_procs_per_node_observer $NETCDF_CONCATENATE_EXEC > ./concatenate_netcdf_${prefx}.log
+
+      # number of processors for concatenation depends on how many processors were used to run JEDI
+      if ( $JEDI_ANALYSIS_TYPE =~ *enkf_prior* || $JEDI_ANALYSIS_TYPE == enkf_solver ) then
+         $run_cmd -n $jedi_enkf_num_procs_observer -ppn $jedi_enkf_num_procs_per_node_observer $NETCDF_CONCATENATE_EXEC > ./concatenate_netcdf_${prefx}.log
+      else if ( $JEDI_ANALYSIS_TYPE == enkf_all_at_once ) then
+         $run_cmd -n $jedi_enkf_num_procs_solver -ppn $jedi_enkf_num_procs_per_node_solver $NETCDF_CONCATENATE_EXEC > ./concatenate_netcdf_${prefx}.log
+      else
+         $run_cmd -n $jedi_variational_num_procs -ppn $jedi_variational_num_procs_per_node $NETCDF_CONCATENATE_EXEC > ./concatenate_netcdf_${prefx}.log
+      endif
       if ( `grep -i "All done" ./concatenate_netcdf_${prefx}.log | wc -l` != 1 ) then
 	 touch -f ./CONCATENATE_FAILED_${prefx}
        # exit 14
