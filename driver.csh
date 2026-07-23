@@ -327,10 +327,15 @@ setenv num_outer_loops  1    # Number of outer loops for variational minimizatio
 setenv num_inner_loops  60   # Maximum number of iterations in each outer loop
 setenv FOUR_D_ENVAR   false  # (true,false) ... whether to use 4DEnVar
    setenv    ens_fcst_mins    "-180 -120 -60 0 60 120 180"  # Forecast minutes relative to analysis time for FGAT/4DEnVar
+setenv static_be_weight 0.0 # weight on the static background error. If 0, we are doing pure EnVar. If 1, we are doing pure 3DVAR. If between 0 and 1, hybrid DA.
 
 # background error covariance for EnVar via BUMP, which uses $corrlength_model_space, $vertloc_length_model_space, and $vertloc_coord_model_space_bump
 setenv BE_DIR_ENS     /glade/derecho/scratch/schwartz/CWA/2025/${ENSEMBLE_MESH}/bump_files_${jedi_variational_num_procs}cpus # location of BUMP files
 setenv BE_PREFIX_ENS  bumploc_${corrlength_model_space}km_${vertloc_length_model_space}${vertloc_coord_model_space_bump} # prefix of BUMP files
+
+# static background error covariance for EnVar. Needs to be on the same mesh as the ensemble.
+setenv STATIC_BE_DIR   /glade/derecho/cschwartz/interp_staticB/B_Matrix_${jedi_variational_num_procs}cpus # probably has sub-directories .../nicas, .../vbal, and file .../stddev/mpas.stddev.nc
+setenv STATIC_BE_PREFIX  mpas # look in $STATIC_BE_DIR for the names of the files. If e.g., mpas_nicas_local,mpas_sampling_local, set to "mpas" (no quotes needed)
 
 # ----------------------
 # Stuff for radiance DA

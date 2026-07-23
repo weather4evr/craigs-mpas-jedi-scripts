@@ -99,6 +99,8 @@ if ( $JEDI_ANALYSIS_TYPE == envar ) then
    set bump_files_needed = true
    setenv jedi_exec   mpasjedi_variational.x
 
+   setenv ensemble_be_weight `echo "1.0 - ${static_be_weight}" | bc` # for YAML
+
 else if ( $JEDI_ANALYSIS_TYPE =~ *enkf* ) then
    setenv num_outer_loops    0 # From driver
    setenv num_inner_loops    0
@@ -203,6 +205,9 @@ if ( $need_prior_ensemble =~ *true* || $need_prior_ensemble =~ *TRUE* ) then
 
    if ( $DATE == $first_allowable_analysis_time ) then
       set PREV_ENS_DIR_TOP = ${EXP_DIR_TOP}/${FIRST_DATE}/advance_ensemble/${EXTERNAL_ICS_ENS}_initial_conditions
+#     if ( ! -d $PREV_ENS_DIR_TOP ) then # kind of a hack.
+#        set PREV_ENS_DIR_TOP = ${EXP_DIR_TOP}/${PREV_DATE}/advance_ensemble # Location of prior ensemble when cycling
+#     endif
    else
       set PREV_ENS_DIR_TOP = ${EXP_DIR_TOP}/${PREV_DATE}/advance_ensemble # Location of prior ensemble when cycling
    endif
@@ -332,19 +337,35 @@ if ( $need_prior_deterministic_background =~ *true* || $need_prior_deterministic
 
 endif #if ( $need_prior_deterministic_background =~ *true* || $need_prior_deterministic_background =~ *TRUE* )
 
-# Get background error files
+# See if we need ensemble B; if so, get BUMP files
 if ( $bump_files_needed =~ *true* || $bump_files_needed =~ *TRUE* ) then
+   if ( $JEDI_ANALYSIS_TYPE == envar && (`echo "$ensemble_be_weight > 0" | bc` == 1 ) ) then
+      set p6 = `printf %06d $jedi_variational_num_procs` # 6 digits
+      set num_bump_files = `ls ${BE_DIR_ENS}/${BE_PREFIX_ENS}*grids_local*${p6}-*.nc | wc -l`
+      if ( $num_bump_files != $jedi_variational_num_procs ) then
+	 ls ${BE_DIR_ENS}/${BE_PREFIX_ENS}*
+	 echo "There are $num_bump_files bump files in ${BE_DIR_ENS}"
+	 echo "But you are running JEDI with ${jedi_variational_num_procs} processors."
+	 echo "These should be equal. Need to change number of processors. Try again."
+	 exit 5
+      endif
+      mkdir -p ./bump_files
+      ln -sf ${BE_DIR_ENS}/${BE_PREFIX_ENS}*${p6}-*.nc ./bump_files # Link the files
+   endif
+endif
+
+# See if we need static B
+if ( $JEDI_ANALYSIS_TYPE == envar && (`echo "$static_be_weight > 0" | bc` == 1 ) ) then
    set p6 = `printf %06d $jedi_variational_num_procs` # 6 digits
-   set num_bump_files = `ls ${BE_DIR_ENS}/${BE_PREFIX_ENS}*grids_local*${p6}-*.nc | wc -l`
-   if ( $num_bump_files != $jedi_variational_num_procs ) then
-      ls ${BE_DIR_ENS}/${BE_PREFIX_ENS}*
-      echo "There are $num_bump_files bump files in ${BE_DIR_ENS}"
+   set num_staticB_files = `ls ${STATIC_BE_DIR}/nicas/${STATIC_BE_PREFIX}*grids_local*${p6}-*.nc | wc -l`
+   if ( $num_staticB_files != $jedi_variational_num_procs ) then
+      ls ${STATIC_BE_DIR}/nicas/${STATIC_BE_PREFIX}*
+      echo "There are $num_staticB_files bump files in ${STATIC_BE_DIR}/nicas"
       echo "But you are running JEDI with ${jedi_variational_num_procs} processors."
       echo "These should be equal. Need to change number of processors. Try again."
       exit 5
    endif
-   mkdir -p ./bump_files
-   ln -sf ${BE_DIR_ENS}/${BE_PREFIX_ENS}*${p6}-*.nc ./bump_files # Link the files
+   ln -sf $STATIC_BE_DIR ./B_Matrix
 endif
 
 # Link necessary MPAS model files
