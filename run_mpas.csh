@@ -136,9 +136,9 @@ while ( $mem <= $mem_end && $mem <= $ENS_SIZE )
 # setenv rundir   ${EXP_DIR_TOP}/${DATE}/fc/${mem}
 #     endif
       if ( $MPAS_INPUT_SOURCE == external ) then
-         set rundir = ${EXP_DIR_TOP}/${DATE}/advance_ensemble/${EXTERNAL_ICS_ENS}_initial_conditions/${mem}
+         setenv rundir   ${EXP_DIR_TOP}/${DATE}/advance_ensemble/${EXTERNAL_ICS_ENS}_initial_conditions/${mem}
       else
-         set rundir = ${EXP_DIR_TOP}/${DATE}/advance_ensemble/${mem}
+         setenv rundir   ${EXP_DIR_TOP}/${DATE}/advance_ensemble/${mem}
       endif
    else if ( $MPAS_STAGE == deterministic ) then
       #if RUN_STAGE == forecast, put fc_${FCST_RANGE}h in directory?
