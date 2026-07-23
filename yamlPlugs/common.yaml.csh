@@ -43,6 +43,7 @@ _obs error diagonal: &ObsErrorDiagonal
   #zero-mean perturbations: true
   #member: 1
   #number of members: 1
+
 _clear crtm: &clearCRTMObsOperator
   name: CRTM
   SurfaceWindGeoVars: uv
@@ -53,6 +54,7 @@ _clear crtm: &clearCRTMObsOperator
     EndianType: little_endian
     CoefficientPath: $CRTM_COEFFS_DIR #/glade/work/guerrett/pandac/fixed_input/crtm_bin/
     IRVISlandCoeff: IGBP #USGS
+
 _cloudy crtm: &cloudyCRTMObsOperator
   name: CRTM
   SurfaceWindGeoVars: uv
@@ -64,7 +66,9 @@ _cloudy crtm: &cloudyCRTMObsOperator
     Clouds: [Water, Ice, Rain, Snow, Graupel]
   obs options:
     <<: *CRTMObsOptions
+
 _get values: &GetValues
   nnearest: 3
+
 _blank: null # not an anchor, so is this needed?
 EOF

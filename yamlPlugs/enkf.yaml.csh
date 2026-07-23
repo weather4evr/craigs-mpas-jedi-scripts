@@ -4,7 +4,7 @@ set output_fname = $1 # file that is output (added to, given 'cat >>' )
 cat >> $output_fname << EOF
 _member: &memberConfig
   date: &analysisDate ${jedi_time_string}
-  state variables: [spechum,surface_pressure,temperature,uReconstructMeridional,uReconstructZonal,theta,rho,u,w,qv,pressure,landmask,observable_domain_mask,xice,snowc,skintemp,ivgtyp,isltyp,snowh,vegfra,u10,v10,lai,smois,tslb,pressure_p,qc,qi,qg,qr,qs,cldfrac,refl10cm ,ni,nc,nr,ns,ng,smlf,gmlf] # after refl10cm needed for PPRO
+  state variables: [spechum,surface_pressure,temperature,uReconstructMeridional,uReconstructZonal,theta,rho,u,w,qv,pressure,landmask,observable_domain_mask,xice,snowc,skintemp,ivgtyp,isltyp,snowh,vegfra,u10,v10,t2m,q2,lai,smois,tslb,pressure_p,qc,qi,qg,qr,qs,cldfrac,refl10cm ,ni,nc,nr,ns,ng,smlf,gmlf] # after refl10cm needed for PPRO
   stream name: background
   use power transform mixing ratios: false  # for PPRO??
   use power transform number concentrations: false
@@ -20,6 +20,7 @@ _as observer: &asObserver
   save single member for observer: $SaveSingleMember
   single memeber number for save: $SingleMemberNumber
 # save prior mean: false
+  use control member: $use_control_member #true 
 
 _as solver: &asSolver
   read HX from disk: true
@@ -56,9 +57,14 @@ background:
     pattern: %iMember%
     start: 1
     zero padding: 3
-    nmembers: $ENS_SIZE
+    nmembers: $my_ens_size #$ENS_SIZE
 
-increment variables: [spechum,surface_pressure,temperature,uReconstructMeridional,uReconstructZonal,qc,qi,qg,qr,qs,ni,nr,ns,ng,smlf,gmlf,refl10cm] # after qs for PPRO
+control member:
+  filename: ../ens_mean/mpas_prior_ensmean.nc
+  <<: *memberConfig
+
+#increment variables: [spechum,surface_pressure,temperature,uReconstructMeridional,uReconstructZonal,qc,qi,qg,qr,qs,ni,nc,nr,ns,ng,smlf,gmlf,refl10cm] # after qs for PPRO
+increment variables:  [spechum,surface_pressure,temperature,uReconstructMeridional,uReconstructZonal,u10,v10,t2m,q2,qc,qi,qg,qr,qs,ni,nc,nr,ns,ng,smlf,gmlf,refl10cm]
 
 driver: *${letkf_stage} #*asObserver or *asSolver
 

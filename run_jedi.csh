@@ -25,6 +25,8 @@ set minutes = `echo "$DATE" | cut -c 11-12` # minutes of $DATE
 setenv mpas_date         `date -d "${yyyymmdd} ${hh}${minutes}" +%Y-%m-%d_%H.%M.%S` # MPAS format
 setenv jedi_time_string  `date -d "${yyyymmdd} ${hh}${minutes}" +%Y-%m-%dT%H:%M:%SZ` # JEDI time string (e.g., 2023-05-23T12:00:00Z)
 
+setenv my_ens_size        $ENS_SIZE # update below if JEDI_ANALYSIS_TYPE == enkf_prior_members && $use_control_member == true
+
 set PREV_DATE = `date -d "${yyyymmdd} ${hh}${minutes} - ${CYCLE_PERIOD} minutes" +%Y%m%d%H%M`
 
 set THIS_OB_DIR = ${OB_DIR}/${DATE} #From driver
@@ -113,10 +115,14 @@ else if ( $JEDI_ANALYSIS_TYPE =~ *enkf* ) then
       set dir_prefx = ens_mean
       setenv jedi_enkf_num_procs_per_node_observer   $jedi_enkf_num_procs_per_node_observer_mean
       setenv linear_forward_operator false # we want a nonlinear HofX for the ensemble mean prior
+      setenv use_control_member false # no control for ensemble mean
    else if ( $JEDI_ANALYSIS_TYPE == enkf_prior_members ) then
       set dir_prefx = ens # becomes member-dependent later
       set member = $PBS_ARRAY_INDEX # #PBS with "-J" flag (PBS pro)
       setenv jedi_enkf_num_procs_per_node_observer   $jedi_enkf_num_procs_per_node_observer_members
+      if ( $use_control_member == true ) then
+	 setenv my_ens_size 1
+      endif
    else if ( $JEDI_ANALYSIS_TYPE == enkf_all_at_once ) then
       set dir_prefx = enkf
       setenv jedi_enkf_num_procs_per_node_observer   $jedi_enkf_num_procs_per_node_solver
@@ -398,6 +404,18 @@ if ( $JEDI_ANALYSIS_TYPE == enkf_solver || $JEDI_ANALYSIS_TYPE == enkf_all_at_on
    cp ./mpas_en001.nc ./analysis.${mpas_date}_en000.nc # ensemble mean
 endif
 
+# If running for prior members, we just need the one specific member
+#  if using the "control" member. We already checked for file existence.
+# So link the necessary member to ./mpas_en001.nc
+if ( $JEDI_ANALYSIS_TYPE == enkf_prior_members && $use_control_member == true ) then
+   foreach minute ( $relative_fcst_minutes )
+      set this_mpas_date = `date -d "${yyyymmdd} ${hh}${minutes} + ${minute} minutes" +%Y-%m-%d_%H.%M.%S` # MPAS format; valid time of interest
+      set fname = ${PREV_ENS_DIR_TOP}/${member}/${file_type}.${this_mpas_date}.nc
+      rm -f ./mpas_en???.nc 
+      ln -sf $fname ./mpas_en001.nc
+   end
+endif
+
 #-----------------------------------------------------------------------
 # Get observation information,link the observation files, and fill a
 #  YAML file for the observations
@@ -649,7 +667,11 @@ else if ( $JEDI_ANALYSIS_TYPE =~ *enkf* ) then
 	 setenv SingleMemberNumber 0
 	 setenv enkf_type LETKF # force LETKF analysis for prior mean to not produce H(x) for modulated members
       else if ( $JEDI_ANALYSIS_TYPE == enkf_prior_members ) then
-	 setenv SingleMemberNumber $member
+	 if ( $use_control_member == true ) then
+	    setenv SingleMemberNumber 1
+	 else
+	    setenv SingleMemberNumber $member
+	 endif
       endif
    else if ( $JEDI_ANALYSIS_TYPE == enkf_solver ) then
       setenv letkf_stage  asSolver
@@ -863,6 +885,14 @@ if ( $JEDI_ANALYSIS_TYPE =~ *enkf_prior* ) then
 	    set fname = ./tmp.h5
 	    ncks -O --no_abc $fname1 $fname # change the format to make IODA-v3 file netCDF4-compliant
 	    set groups = `ncdump -h $fname | grep group: | grep -E hofxm\|hofx0 | cut -d " " -f2` # returns hofxm0* hofx0* as array
+	    if ( $use_control_member == true ) then
+	       foreach group ( $groups )  # all should end in "_1" if $use_control_member == true
+		 set my_group = `echo "$group" | sed 's/.$//'` # strip off last character
+		 ncrename -g "${group}","${my_group}${member}" $fname
+	       end
+	       # get groups again--the names have been updated to reflect the proper member number
+	       set groups = `ncdump -h $fname | grep group: | grep -E hofxm\|hofx0 | cut -d " " -f2` # returns hofxm0* hofx0* as array
+	    endif
 	    set ncks_str = `echo $groups | sed -e "s/ /,/g"` # replaces all the spaces with a comma (e.g., hofx0_1,hofxm0_10_1)
 	    ncks -O --no_abc -C -g $ncks_str $fname ${jedi_output_dir}/obsout_omb_${inst}_processed.h5
 	 endif
@@ -882,6 +912,8 @@ else if ( $JEDI_ANALYSIS_TYPE == enkf_solver ) then
 	 exit 13
       endif
 \'EOF5\'
+
+   if ( -e ./FAIL ) exit
 
    # now run EnKF to get OMA statistics
    # all we need to do is run LETKF again in observer mode, but point to the analysis files
@@ -921,16 +953,16 @@ else if ( $JEDI_ANALYSIS_TYPE == enkf_solver ) then
 \'EOF6\'
 
       # Strip out modulated members in the OMA files
-      foreach inst ( $instruments )
-	 set fname = ${omaDir}/obsout_oma_${inst}.h5
-	 if ( -e $fname ) then
-	    set groups = `ncdump -h $fname | grep group: | grep -E hofxm | cut -d " " -f2` # returns hofxm0* as array
-	    set ncks_str = `echo $groups | sed -e "s/ /,/g"` # replaces all the spaces with a comma (e.g., hofxm0_10_2,hofxm0_10_1)
-	    set fname1 = ./tmp.h5
-	    ncks -O --no_abc -C -h -x -g $ncks_str $fname $fname1
-	    mv $fname1 $fname
-	 endif
-      end
+     #foreach inst ( $instruments )
+	#set fname = ${omaDir}/obsout_oma_${inst}.h5
+	#if ( -e $fname ) then
+	   #set groups = `ncdump -h $fname | grep group: | grep -E hofxm | cut -d " " -f2` # returns hofxm0* as array
+	   #set ncks_str = `echo $groups | sed -e "s/ /,/g"` # replaces all the spaces with a comma (e.g., hofxm0_10_2,hofxm0_10_1)
+	   #set fname1 = ./tmp.h5
+	   #ncks -O --no_abc -C -h -x -g $ncks_str $fname $fname1
+	   #mv $fname1 $fname
+	#endif
+     #end
    endif # endif do_oma = true
 
 else if ( $JEDI_ANALYSIS_TYPE == enkf_all_at_once ) then
@@ -984,6 +1016,8 @@ else if ( $JEDI_ANALYSIS_TYPE == enkf_all_at_once ) then
 	 $run_cmd_jedi -n $jedi_enkf_num_procs_solver -ppn $jedi_enkf_num_procs_per_node_solver $jedi_exec ./oma.yaml  ./oma.log < /dev/null
       endif # endif do_oma
 \'EOF7\'
+
+   if ( -e ./FAIL ) exit
 
 else # envar, bump
    csh << \'EOF8\'
