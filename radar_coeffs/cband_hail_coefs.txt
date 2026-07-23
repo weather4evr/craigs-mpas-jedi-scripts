@@ -1,0 +1,1 @@
+cband_hail_coefs_zhang2025.txt
