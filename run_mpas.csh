@@ -391,7 +391,7 @@ EOF1
    if ( 1 == 2 ) then
    if ( $RUN_STAGE == next_cycle ) then
       if ( $MPAS_INPUT_SOURCE == enkf && $MPAS_STAGE == ensemble ) then
-	 et expected_date = `date -d "${yyyymmdd} ${hh}${minutes} + ${FCST_RANGE} minutes" +%Y-%m-%d_%H.%M.%S` # MPAS format
+	 set expected_date = `date -d "${yyyymmdd} ${hh}${minutes} + ${FCST_RANGE} minutes" +%Y-%m-%d_%H.%M.%S` # MPAS format
 	 set expected_filename = ./${file_type}.${expected_date}.nc
 	 if ( -e $expected_filename ) then # first check : existence
 	    if ( `stat -c %s $expected_filename` > 2000000 ) then # second check: file size
