@@ -186,6 +186,8 @@ while ( $mem <= $mem_end && $mem <= $ENS_SIZE )
 	 setenv mpas_filename   ${MPAS_INIT_DETERMINISTIC_OUTPUT_DIR_TOP}/${DATE}/init.nc
       else if ( $MPAS_INPUT_SOURCE == envar ) then
          setenv mpas_filename ${EXP_DIR_TOP}/${DATE}/envar/analysis.${mpas_date}.nc
+      else if ( $MPAS_INPUT_SOURCE == enkf ) then
+         setenv mpas_filename ${EXP_DIR_TOP}/${DATE}/enkf/analysis.${mpas_date}_en000.nc
       endif
    endif
 
@@ -239,7 +241,11 @@ while ( $mem <= $mem_end && $mem <= $ENS_SIZE )
       foreach sst_hour ( $update_sst_hours ) # update_sst_hours from driver.csh; could be a list
          if ( $sst_hour == $hh && $minutes == 00 ) then
             if ( $mesh == ensemble ) then
-	       set sst_fname = ${MPAS_INIT_ENS_OUTPUT_DIR_TOP}/${DATE}/ens_${mem}/sfc_update.nc
+               if ( $MPAS_STAGE == ensemble ) then
+	          set sst_fname = ${MPAS_INIT_ENS_OUTPUT_DIR_TOP}/${DATE}/ens_${mem}/sfc_update.nc
+	       else if ( $MPAS_STAGE == deterministic ) then
+		  set sst_fname = ${MPAS_INIT_ENS_OUTPUT_DIR_TOP}/${DATE}/sfc_update.nc
+               endif
             else if ( $mesh == deterministic ) then
 	       set sst_fname = ${MPAS_INIT_DETERMINISTIC_OUTPUT_DIR_TOP}/${DATE}/sfc_update.nc
 	    endif
