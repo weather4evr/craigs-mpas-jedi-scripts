@@ -18,6 +18,7 @@ surface_pressure
 theta
 tslb
 u
+w
 u10
 uReconstructZonal
 uReconstructMeridional

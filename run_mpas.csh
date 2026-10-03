@@ -179,6 +179,10 @@ while ( $mem <= $mem_end && $mem <= $ENS_SIZE )
 	 setenv mpas_filename ${MPAS_INIT_ENS_OUTPUT_DIR_TOP}/${DATE}/ens_${mem}/init.nc  # This is the only input file needed
       else if ( $MPAS_INPUT_SOURCE == enkf ) then
 	 setenv mpas_filename ${EXP_DIR_TOP}/${DATE}/enkf/analysis.${mpas_date}_en${i3}.nc
+	 if ( -e ${EXP_DIR_TOP}/${DATE}/enkf/FAIL ) then
+	    echo "{EXP_DIR_TOP}/${DATE}/enkf/FAIL exists, so something went wrong."
+	    exit
+	 endif
       endif
 
    else if ( $MPAS_STAGE == deterministic ) then

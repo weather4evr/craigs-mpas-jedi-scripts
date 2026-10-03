@@ -885,6 +885,7 @@ if ( $JEDI_ANALYSIS_TYPE =~ *enkf_prior* ) then
       csh << \'EOF4\'
 	 source $jedi_environment_file
 	 if ( $?mpasjedi_library_path ) setenv LD_LIBRARY_PATH ${mpasjedi_library_path}:$LD_LIBRARY_PATH # need path of library on derecho
+         cd $JEDI_RUN_DIR
 	 $run_cmd_jedi -n $jedi_enkf_num_procs_observer -ppn $jedi_enkf_num_procs_per_node_observer $jedi_exec ./observer.yaml  ./observer.log_again < /dev/null
 \'EOF4\'
 
@@ -927,6 +928,7 @@ else if ( $JEDI_ANALYSIS_TYPE == enkf_solver ) then
    csh << \'EOF5\'
       source $jedi_environment_file
       if ( $?mpasjedi_library_path ) setenv LD_LIBRARY_PATH ${mpasjedi_library_path}:$LD_LIBRARY_PATH # need path of library on derecho
+      cd $JEDI_RUN_DIR
       $run_cmd_jedi -n $jedi_enkf_num_procs_solver -ppn $jedi_enkf_num_procs_per_node_solver $jedi_exec ./solver.yaml  ./solver.log < /dev/null
       if ( $status != 0 ) then
 	 echo "EnKF solver failed with status = ${status}" >> FAIL
@@ -970,6 +972,7 @@ else if ( $JEDI_ANALYSIS_TYPE == enkf_solver ) then
       csh << \'EOF6\'
 	 source $jedi_environment_file
 	 if ( $?mpasjedi_library_path ) setenv LD_LIBRARY_PATH ${mpasjedi_library_path}:$LD_LIBRARY_PATH # need path of library on derecho
+         cd $JEDI_RUN_DIR
 	 $run_cmd_jedi -n $jedi_enkf_num_procs_observer -ppn $jedi_enkf_num_procs_per_node_observer $jedi_exec ./oma.yaml  ./oma.log < /dev/null
 \'EOF6\'
 
@@ -993,6 +996,7 @@ else if ( $JEDI_ANALYSIS_TYPE == enkf_all_at_once ) then
    csh << \'EOF7\'
       source $jedi_environment_file
       if ( $?mpasjedi_library_path ) setenv LD_LIBRARY_PATH ${mpasjedi_library_path}:$LD_LIBRARY_PATH # need path of library on derecho
+      cd $JEDI_RUN_DIR
       $run_cmd_jedi -n $jedi_enkf_num_procs_solver -ppn $jedi_enkf_num_procs_per_node_solver $jedi_exec ./observer.yaml  ./observer.log < /dev/null
       if ( $status != 0 ) then
 	 echo "EnKF observer failed with status = ${status}" >> FAIL
@@ -1044,6 +1048,7 @@ else # envar, bump
    csh << \'EOF8\'
       source $jedi_environment_file
       if ( $?mpasjedi_library_path ) setenv LD_LIBRARY_PATH ${mpasjedi_library_path}:$LD_LIBRARY_PATH # need path of library on derecho
+      cd $JEDI_RUN_DIR
       $run_cmd_jedi -n $jedi_variational_num_procs -ppn $jedi_variational_num_procs_per_node $jedi_exec $full_yaml_file  ./da.log < /dev/null
 \'EOF8\'
 endif
@@ -1070,10 +1075,12 @@ if ( $radiance_str != "" ) then
       ln -sf ./input_${prefx}.nml ./input.nml # program looks for ./input.nml
 
       # number of processors for concatenation depends on how many processors were used to run JEDI
-      if ( $JEDI_ANALYSIS_TYPE =~ *enkf_prior* || $JEDI_ANALYSIS_TYPE == enkf_solver ) then
+      if ( $JEDI_ANALYSIS_TYPE =~ *enkf_prior* ) then
          $run_cmd -n $jedi_enkf_num_procs_observer -ppn $jedi_enkf_num_procs_per_node_observer $NETCDF_CONCATENATE_EXEC > ./concatenate_netcdf_${prefx}.log
       else if ( $JEDI_ANALYSIS_TYPE == enkf_all_at_once ) then
          $run_cmd -n $jedi_enkf_num_procs_solver -ppn $jedi_enkf_num_procs_per_node_solver $NETCDF_CONCATENATE_EXEC > ./concatenate_netcdf_${prefx}.log
+      else if ( $JEDI_ANALYSIS_TYPE == enkf_solver ) then
+         break # no need for concatenation if just running for enkf solver
       else
          $run_cmd -n $jedi_variational_num_procs -ppn $jedi_variational_num_procs_per_node $NETCDF_CONCATENATE_EXEC > ./concatenate_netcdf_${prefx}.log
       endif
