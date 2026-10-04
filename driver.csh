@@ -25,7 +25,7 @@ setenv mpas_init_walltime  10
 
 setenv mpas_num_procs    256 # atmosphere_model
 setenv mpas_num_procs_per_node  $num_procs_per_node # Number of processors per node you want to use for MPAS Model forecasts
-setenv mpas_walltime       7 
+setenv mpas_walltime       7 #35
 setenv mpas_num_procs_free_fcst $mpas_num_procs # for free forecast on the potentially higher-resolution mesh
 
 setenv jedi_variational_num_procs   512 # JEDI variational (EnVar/hybrid/3DVar)
@@ -38,15 +38,20 @@ setenv jedi_enkf_num_procs_observer_mean      512   # JEDI EnKF (LETKF/GETKF)
 setenv jedi_enkf_num_procs_observer_members   $jedi_enkf_num_procs_observer_mean
 setenv jedi_enkf_num_procs_per_node_observer_mean $num_procs_per_node #64
 setenv jedi_enkf_num_procs_per_node_observer_members $num_procs_per_node
-setenv jedi_walltime_enkf_observer       9
+setenv jedi_walltime_enkf_observer       10
 
    # LETKF "solver" ; these are used for just solver and for everything if all_at_once == true (see below)
 setenv jedi_enkf_num_procs_solver        1024  # JEDI EnKF (LETKF/GETKF)
 setenv jedi_enkf_num_procs_per_node_solver $num_procs_per_node
-setenv jedi_walltime_enkf_solver         9
+setenv jedi_walltime_enkf_solver         13
+
+  # Number of processors for forecast verification using HofX
+setenv hofx_verif_num_procs          512
+setenv hofx_verif_num_procs_per_node 128
+setenv hofx_verif_walltime           10
 
 # Account numbers and queues
-setenv mpas_account  "NMMM0035"
+setenv mpas_account  "NMMM0015"
 setenv jedi_account  $mpas_account
 
 set jedi_queue = "main"  #main #full name: main@chadmin1.ib0.cheyenne.ucar.edu" 
@@ -78,6 +83,11 @@ setenv RUN_MPAS_DETERMINISTIC false # Runs a deterministic forecast forward in t
 
 setenv RUN_BUMP         false # Run JEDI's BUMP for localization files. Just need to read an init.nc file valid at any date
 
+setenv RUN_JEDI_FOR_FORECAST_VERIF  false
+   setenv FCST_TIMES  `seq 0 60 1080` # forecast MINUTES to verify
+   setenv FCST_DATA_DIR      '${EXP_DIR_TOP}/${DATE}/fc/enkf_ens_mean' # where data are; keep in single quotes and use "eval" to actually find it. See run_jedi.csh.
+   # set directory = `eval "echo $FCST_DATA_DIR"`
+
 ######################################
 #Directories pointing to source code #
 ######################################
@@ -100,7 +110,7 @@ setenv ENS_AVERAGE_EXEC        /glade/u/home/schwartz/average_netcdf_files_paral
 setenv NETCDF_CONCATENATE_EXEC /glade/u/home/schwartz/concatenate_netcdf/concatenate_netcdf_files.x # MPI executable to concatenate UFO files from all processors into one file
 setenv THINNING_HofX_EXEC      ${SCRIPT_DIR}/thinning_hofx.py
 
-setenv jedi_environment_file  ${MPAS_JEDI_BUNDLE_DIR}/code/mpas-bundle/env-setup/gnu-derecho.csh     # File with the JEDI environment. Must already be there.
+setenv jedi_environment_file  ${SCRIPT_DIR}/gnu-derecho.csh #${MPAS_JEDI_BUNDLE_DIR}/code/mpas-bundle/env-setup/gnu-derecho.csh     # File with the JEDI environment. Must already be there.
 setenv mpasjedi_library_path  ${MPAS_JEDI_BUNDLE_DIR}/build/lib  # Full path location to libmpasjedi.so that is built when compiling JEDI; needed on Derecho
 setenv run_cmd_jedi           mpiexec # MPI command to run JEDI, could differ from $run_cmd (above) that is based on the machine
 setenv mpas_compiled_within_jedi    true  # (true, false) If true, use the MPAS model/init executables compiled within mpas-bundle using JEDI environment. If false use mpas_environment_file for mpas environment
@@ -123,7 +133,7 @@ setenv python_close_env_string "conda deactivate"   # ""
 setenv DETERMINISTIC_MESH   20_2km_small   # EnVar mesh, typically something like 15km_mesh 
 setenv ENSEMBLE_MESH   $DETERMINISTIC_MESH # 15km_mesh   # EnKF/ensemble mesh; could be same as $DETERMINISTIC_MESH
 
-setenv EXPT           expt_tcwa2_sfc+radar_outlier3 #expt_tcwa2_sfc+radar #expt_tcwa2_sfc+radar+ahi #expt_tcwa2_sfc+radar #expt_tcwa2_ahi+sfc+radar #name of the experiment
+setenv EXPT           expt_tcwa2_radar+ahi_bugFix #expt_tcwa2_sfc+radar+ahi_bugFix #expt_tcwa2_radar_2025code #expt_tcwa2_sfc+radar_outlier3_noPs #expt_tcwa2_sfc+radar_outlier3 #expt_tcwa2_sfc+radar #expt_tcwa2_sfc+radar+ahi #expt_tcwa2_sfc+radar #expt_tcwa2_ahi+sfc+radar #name of the experiment
 setenv EXP_DIR_TOP   /glade/derecho/scratch/schwartz/CWA/2026/${DETERMINISTIC_MESH}/${EXPT}  #Directory where most things run
 
 ################################################################################
@@ -142,7 +152,7 @@ setenv EXP_DIR_TOP   /glade/derecho/scratch/schwartz/CWA/2026/${DETERMINISTIC_ME
 ################################################################################
 
 setenv FIRST_DATE    202206221800 # Fixed for a set of experiments. First date of an MPAS forecast (cold-start forecast initialized at this time to start things off).
-setenv LAST_DATE     202206260000 # Fixed for a set of experiments. The last date for an analysis or forecast.
+setenv LAST_DATE     202206280300 # Fixed for a set of experiments. The last date for an analysis or forecast.
 
 setenv start_init    $start_init # controls the cycling in below loop. should be >= $FIRST_DATE
 setenv end_init      $start_init
@@ -280,7 +290,7 @@ setenv   interpolation_weight_file      dummy #weights_30km_mesh_to_15km_mesh.da
 #######################################################
 # MPAS model namelist settings that are not hard-coded
 #######################################################
-setenv time_step_deterministic 8.0 # Seconds.  Typically should be 4-6*dx; use closer to 4 for cycling DA
+setenv time_step_deterministic 10.0 # Seconds.  Typically should be 4-6*dx; use closer to 4 for cycling DA
 setenv time_step_ens         $time_step_deterministic
 setenv time_step_free_fcst   $time_step_deterministic
 setenv radiation_frequency_deterministic  15 # Minutes.  Typically the same as dx (for dx = 15 km, 15 minutes)
@@ -311,7 +321,7 @@ setenv ob_time_window   30  # Minutes...the number of minutes on either side of 
 # ----------------------
 setenv enkf_type   GETKF      # Either LETKF or GETKF, in capital letters. If GETKF, vertical localization is in model space. Horizontal localization in obs-space for both LETKF and GETKF (in model space for EnVar).
 setenv corrlength_model_space 160 # Horizontal Gaspari-Cohn distance at which increment forced to zero (km) for model-space horizontal localization in EnVar; obs-space horizontal localizations for all EnKFs defined in $OBS_INFO_FILE
-setenv vertloc_length_model_space  3000.0  # Vertical Gaspari-Cohn distance at which increment forced to zero for model-space vertical localization. Can be scale-height or meters. For EnVar and GETKF. Defined in $OBS_INFO file for LETKF.
+setenv vertloc_length_model_space  4000.0  # Vertical Gaspari-Cohn distance at which increment forced to zero for model-space vertical localization. Can be scale-height or meters. For EnVar and GETKF. Defined in $OBS_INFO file for LETKF.
 setenv vertloc_coord_model_space       "height"  # ("height", "pressure" ); pressure really means scale-height; used in GETKF YAML
 setenv vertloc_coord_model_space_bump  "height"  # ("height", "scaleheight" ); for BUMP YAML
 setenv rtps_inflation_factor    0.9
@@ -435,13 +445,13 @@ while ( $DATE <= $end_init )
 	 setenv jedi_enkf_num_procs_observer      $jedi_enkf_num_procs_observer_mean  # JEDI EnKF (LETKF/GETKF)
 	 setenv JEDI_ANALYSIS_TYPE   enkf_prior_mean
 	 set num_needed_nodes = `echo "$jedi_enkf_num_procs_observer / $jedi_enkf_num_procs_per_node_observer_mean" | bc`
-	 set id_enkf = `qsub -N "enkf_${DATE}" $dependency_condition -A "$jedi_account"  -q $jedi_queue -l job_priority=${jedi_priority} \
+	 set id_enkf_mean = `qsub -N "enkf_${DATE}" $dependency_condition -A "$jedi_account"  -q $jedi_queue -l job_priority=${jedi_priority} \
 	     -l "select=${num_needed_nodes}:ncpus=${num_procs_per_node}:mpiprocs=${jedi_enkf_num_procs_per_node_observer_mean}" \
 	     -l walltime=${jedi_walltime_enkf_observer}:00 ${SCRIPT_DIR}/run_jedi.csh`
 
 	 setenv jedi_enkf_num_procs_observer      $jedi_enkf_num_procs_observer_members  # JEDI EnKF (LETKF/GETKF)
 	 setenv JEDI_ANALYSIS_TYPE   enkf_prior_members
-	 set dependency_condition = "-W depend=afterok:${id_enkf}"
+	 set dependency_condition = "-W depend=afterok:${id_enkf_mean}"
 	#set dependency_condition = ""
 	 set num_needed_nodes = `echo "$jedi_enkf_num_procs_observer / $jedi_enkf_num_procs_per_node_observer_members" | bc`
 	 set id_enkf = `qsub -N "enkf_${DATE}" $dependency_condition -A "$jedi_account"  -q $jedi_queue -l job_priority=${jedi_priority} \
@@ -452,7 +462,7 @@ while ( $DATE <= $end_init )
 	 setenv jedi_enkf_num_procs_observer      $jedi_enkf_num_procs_observer_mean  # For  possible OMA calculations
          if ( $do_oma =~ *true* || $do_oma =~ *TRUE* ) then
             if ( $jedi_enkf_num_procs_observer > $jedi_enkf_num_procs_solver ) then
-               echo "jedi_enkf_num_procs_observer > jedi_enkf_num_procs_solver, which is not allowed when do_ama = true"
+               echo "jedi_enkf_num_procs_observer > jedi_enkf_num_procs_solver, which is not allowed when do_oma = true"
 	       exit
 	    endif
          endif
@@ -543,6 +553,17 @@ while ( $DATE <= $end_init )
 	 end
       endif
      # ${SCRIPT_DIR}/run_mpas.csh 1
+   endif
+
+   if ( $RUN_JEDI_FOR_FORECAST_VERIF == true ) then
+      setenv JEDI_ANALYSIS_TYPE    forward_operator_for_forecast_verif
+      set num_needed_nodes = `echo "$hofx_verif_num_procs / $hofx_verif_num_procs_per_node" | bc`
+      foreach fcst_time ( $FCST_TIMES )
+         setenv FMIN $fcst_time
+         qsub -N "verif_${DATE}_f${FMIN}" -A "$jedi_account" -l walltime=${hofx_verif_walltime}:00 \
+           -l "select=${num_needed_nodes}:ncpus=${num_procs_per_node}:mpiprocs=${hofx_verif_num_procs_per_node}" \
+            ${SCRIPT_DIR}/run_jedi.csh
+      end
    endif
 
    set yyyymmdd = `echo "${DATE}" | cut -c 1-8`

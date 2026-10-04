@@ -17,7 +17,7 @@
 # Get Date information and set obs directory 
 #--------------------------------------------
 setenv DATE $DATE  #From driver, ccyymmddnn (e.g., 202305231200)
-set yyyymmddhh = `echo "$DATE" | cut -c 1-10` # yyyymmdd of $DATE
+set yyyymmddhh = `echo "$DATE" | cut -c 1-10` # yyyymmddhh of $DATE
 set yyyymmdd = `echo "$DATE" | cut -c 1-8` # yyyymmdd of $DATE
 set hh = `echo "$DATE" | cut -c 9-10` # hour of $DATE
 set minutes = `echo "$DATE" | cut -c 11-12` # minutes of $DATE
@@ -42,8 +42,10 @@ set file_type = ${file_type} # From driver # use mpasout or restart files?
 #-------------------------------------------------------
 # BUMP doesn't actually care about the date, so okay if $DATE == $FIRST_DATE
 if ( $DATE == $FIRST_DATE ) then
-   if ( $JEDI_ANALYSIS_TYPE != bump ) then
-      echo "for FIRST_DATE = $FIRST_DATE you can only run a cold-start forecast"
+   if ( $JEDI_ANALYSIS_TYPE == bump || $JEDI_ANALYSIS_TYPE == forward_operator_for_forecast_verif ) then
+      echo ""
+   else
+      echo "for FIRST_DATE = $FIRST_DATE you can only run a cold-start forecast or do verification"
       exit 
    endif
 endif
@@ -64,7 +66,7 @@ if ( $JEDI_ANALYSIS_TYPE == bump ) then
    set relative_fcst_minutes = ( 0 ) 
 endif
 if ( $JEDI_ANALYSIS_TYPE == forward_operator_for_forecast_verif ) then
-   set relative_fcst_minutes = ( $FHR ) # $FHR is a special environmental variable
+   set relative_fcst_minutes = ( $FMIN ) # $FMIN is a special environmental variable
 endif
 
 # Assume we need obs. If not, change (currently only false for $JEDI_ANALYSIS_TYPE == bump)
@@ -151,18 +153,25 @@ else if ( $JEDI_ANALYSIS_TYPE == forward_operator_for_forecast_verif ) then
    setenv num_outer_loops    0
    setenv num_inner_loops    0
    set    dir_prefx =     fcst_verif
-   set MPAS_GRID_INFO_DIR = $MPAS_GRID_INFO_DIR_FREE_FCST
+   set MPAS_GRID_INFO_DIR = $grid_info_dir_free_fcst
    setenv graph_info_prefx     $graph_info_prefx_free_fcst
    setenv time_step $time_step_free_fcst
    setenv config_len_disp $config_len_disp_free_fcst
    setenv radiation_frequency $radiation_frequency_free_fcst
    set bump_files_needed = false
 
-   set valid_time = `date -d "${yyyymmdd} ${hh}${minutes} + ${FHR} minutes" +%Y%m%d%H%M` # FHR from environment
+   set fcst_directory = `eval "echo $FCST_DATA_DIR"` # $FCST_DATA_DIR from driver.csh
+   setenv FCST_RANGE 0
+
+   set valid_time = `date -d "${yyyymmdd} ${hh}${minutes} + ${FMIN} minutes" +%Y%m%d%H%M` # FMIN from environment
    set fyyyymmdd  = `echo "${valid_time}" | cut -c 1-8`
    set fhhmin     = `echo "${valid_time}" | cut -c 9-12`
    set valid_time_mpas = `date -d "${fyyyymmdd} ${fhhmin}" +%Y-%m-%d_%H.%M.%S` # MPAS format
+
+   setenv jedi_time_string  `date -d "${fyyyymmdd} ${fhhmin}" +%Y-%m-%dT%H:%M:%SZ` # JEDI time string (e.g., 2023-05-23T12:00:00Z)
+
    set THIS_OB_DIR = ${OB_DIR}/${valid_time} 
+   setenv time_window_begin `date -d "${fyyyymmdd} ${fhhmin} - ${ob_time_window} minutes" +%Y-%m-%dT%H:%M:%SZ` # JEDI time string
 
    setenv jedi_exec   mpasjedi_hofx3d.x
 
@@ -177,7 +186,8 @@ endif
 if ( $JEDI_ANALYSIS_TYPE == bump ) then
    setenv JEDI_RUN_DIR   $BE_DIR_ENS # $BE_DIR_ENS from driver.csh
 else if ( $JEDI_ANALYSIS_TYPE == forward_operator_for_forecast_verif ) then # Special case, so special directory
-   setenv JEDI_RUN_DIR   ${EXP_DIR_TOP}/${DATE}/${dir_prefx}/f${FHR} # FHR from environment
+   set mpas_ic_source = `basename $fcst_directory` # could be e.g., envar, enkf_ens_mean
+   setenv JEDI_RUN_DIR   ${EXP_DIR_TOP}/${dir_prefx}/${mpas_ic_source}/${DATE}/f${FMIN} # FMIN from environment
 else if ( $JEDI_ANALYSIS_TYPE == enkf_prior_mean ) then
    setenv JEDI_RUN_DIR   ${EXP_DIR_TOP}/${DATE}/enkf/${dir_prefx}
 else if ( $JEDI_ANALYSIS_TYPE == enkf_prior_members ) then
@@ -271,8 +281,9 @@ if ( $need_prior_deterministic_background =~ *true* || $need_prior_deterministic
       set this_det_background = mpasin.${this_mpas_date}.nc # deterministic background that we will make (it will be a link)
 
       if ( $JEDI_ANALYSIS_TYPE == forward_operator_for_forecast_verif ) then
-	 set directory  = "."
+         set directory = $fcst_directory
 	 set fname = ${file_type}.${this_mpas_date}.nc
+         set det_background = $this_det_background # reset--this works here because $relative_fcst_minutes is a scalar ($FMIN)
       else if ( $JEDI_ANALYSIS_TYPE == bump ) then
 	 set directory = ${MPAS_INIT_ENS_OUTPUT_DIR_TOP}/${DATE}/ens_1
 	 set fname = init.nc
@@ -323,7 +334,7 @@ if ( $need_prior_deterministic_background =~ *true* || $need_prior_deterministic
 
    end # end loop over $relative_fcst_minutes
 
-   # Get a invariant.nc file for the deterministic field; could be on the ensemble mesh.
+   # Get an invariant.nc file for the deterministic field; could be on the ensemble mesh.
    if ( $JEDI_ANALYSIS_TYPE == bump ) then
       set fname = $mpas_invariant_file_ens
    else
@@ -412,6 +423,7 @@ ln -sf ${RADAR_DA_COEFFS_DIR}/*.txt . # coefficients for radar DA
 # need to force $DATE to valid_time...shouldn't hurt anything by doing here
 if ( $JEDI_ANALYSIS_TYPE == forward_operator_for_forecast_verif ) then 
    setenv DATE $valid_time
+   setenv mpas_date $valid_time_mpas
 endif
 
 # For EnKF copy ensemble background to analysis for each member; we'll overwrite the analysis.
@@ -517,7 +529,11 @@ if ( $observations_needed =~ *true* || $observations_needed =~ *TRUE* ) then
 	   #setenv PreQC_maxvalue 3 #0
 	 else
 	    ln -sf ${THIS_OB_DIR}/${inst}_obs_${DATE}.h5 $inputDataFile
-	    setenv bgchk_thresh ${outlier_thresholds[$i]}
+	    if ( $JEDI_ANALYSIS_TYPE == forward_operator_for_forecast_verif ) then
+	       setenv bgchk_thresh 999999 # Assume if there's an outlier, the forecast is bad
+	    else
+	       setenv bgchk_thresh ${outlier_thresholds[$i]}
+	    endif
 	   #setenv PreQC_maxvalue 3
 	 endif
 	 if ( $vloc_unit == pressure ) then
@@ -530,7 +546,7 @@ if ( $observations_needed =~ *true* || $observations_needed =~ *TRUE* ) then
 	    echo "vloc_unit = $vloc_unit invalid. should be either height or pressure"
 	    exit 11
 	 endif
-	 # If we're doing the enkf analysies (enkf_solver), but assimOrEval == eval, we don't want to use it in the 
+	 # If we're doing the enkf analyses (enkf_solver), but assimOrEval == eval, we don't want to use it in the 
 	 #  analysis so don't include the ob in the YAML file. For prior forward operators calculations, always
 	 #  include the ob in the YAML.
 	 if ( $JEDI_ANALYSIS_TYPE != enkf_solver || ($JEDI_ANALYSIS_TYPE == enkf_solver && $assimOrEval == assim) ) then
@@ -637,6 +653,12 @@ else if ( $JEDI_ANALYSIS_TYPE == envar ) then
    $STREAMS_TEMPLATE mpas_jedi $JEDI_RUN_DIR
    mv ./streams.atmosphere ./streams.atmosphere_ens
 
+else if ( $JEDI_ANALYSIS_TYPE == forward_operator_for_forecast_verif ) then
+   # Define the background (./bg.${mpas_date}.nc)
+   ln -sf $det_background ./bg.${mpas_date}.nc
+   setenv input_file         $det_background      #needs to be at correct time, but just grid info used
+   setenv input_invariant_file  ./invariant_deterministic.nc
+   $STREAMS_TEMPLATE   mpas_jedi $JEDI_RUN_DIR # output is ./streams.atmosphere
 else
    setenv input_file         ./mpas_en001.nc #needs to be at correct time, but just grid info used
    setenv input_invariant_file  ./invariant_ens.nc
@@ -647,7 +669,7 @@ endif
 #------------------------------------------------------
 # Add stuff to YAML files, and then concatenate
 #------------------------------------------------------
-set full_yaml_file = ./input.yaml
+setenv full_yaml_file   ./input.yaml
 rm -f $full_yaml_file
 
 # All JEDI applications get the same common block
@@ -716,6 +738,15 @@ else if ( $JEDI_ANALYSIS_TYPE =~ *enkf* ) then
 
    #sed -i "1,2 s/^/  /" ./input.yaml_${stage} # add 2 spaces before each line in lines 1 and 2
    #sed -i "3,${nlines} s/^/    /" ./input.yaml_${stage} # add 4 spaces before each line starting in line 3
+else if ( $JEDI_ANALYSIS_TYPE == forward_operator_for_forecast_verif ) then
+   # each of the following yaml.csh files will be filled with the specified
+   # environmental variables. 'exeucting' these files
+   # appends the templates to $1 that is input
+   ${JEDI_YAML_PLUGS}/hofx.yaml.csh $full_yaml_file $JEDI_RUN_DIR
+   echo "observations:" >> $full_yaml_file
+   echo "  observers:"  >> $full_yaml_file # note the 2 spaces at the start of the string
+   sed -i "s/^/  /" $obs_yaml # add 2 spaces at the start of each line for the observations
+   cat $obs_yaml >> $full_yaml_file # add observations to $full_yaml_file
 else
    echo "need to add YAML for $JEDI_ANALYSIS_TYPE"
    exit
@@ -1044,13 +1075,21 @@ else if ( $JEDI_ANALYSIS_TYPE == enkf_all_at_once ) then
 
    if ( -e ./FAIL ) exit
 
-else # envar, bump
+else if ( $JEDI_ANALYSIS_TYPE == forward_operator_for_forecast_verif ) then
    csh << \'EOF8\'
       source $jedi_environment_file
       if ( $?mpasjedi_library_path ) setenv LD_LIBRARY_PATH ${mpasjedi_library_path}:$LD_LIBRARY_PATH # need path of library on derecho
       cd $JEDI_RUN_DIR
-      $run_cmd_jedi -n $jedi_variational_num_procs -ppn $jedi_variational_num_procs_per_node $jedi_exec $full_yaml_file  ./da.log < /dev/null
+      $run_cmd_jedi -n $hofx_verif_num_procs -ppn $hofx_verif_num_procs_per_node $jedi_exec $full_yaml_file  ./da.log < /dev/null
 \'EOF8\'
+
+else # envar, bump
+   csh << \'EOF9\'
+      source $jedi_environment_file
+      if ( $?mpasjedi_library_path ) setenv LD_LIBRARY_PATH ${mpasjedi_library_path}:$LD_LIBRARY_PATH # need path of library on derecho
+      cd $JEDI_RUN_DIR
+      $run_cmd_jedi -n $jedi_variational_num_procs -ppn $jedi_variational_num_procs_per_node $jedi_exec $full_yaml_file  ./da.log < /dev/null
+\'EOF9\'
 endif
 
 #$run_cmd_jedi ${jedi_exec} ./input.yaml  ./da.log
@@ -1081,6 +1120,9 @@ if ( $radiance_str != "" ) then
          $run_cmd -n $jedi_enkf_num_procs_solver -ppn $jedi_enkf_num_procs_per_node_solver $NETCDF_CONCATENATE_EXEC > ./concatenate_netcdf_${prefx}.log
       else if ( $JEDI_ANALYSIS_TYPE == enkf_solver ) then
          break # no need for concatenation if just running for enkf solver
+      else if ( $JEDI_ANALYSIS_TYPE == forward_operator_for_forecast_verif ) then
+        #$run_cmd -n $hofx_verif_num_procs -ppn $hofx_verif_num_procs_per_node $NETCDF_CONCATENATE_EXEC > ./concatenate_netcdf_${prefx}.log
+         break # no need for concatenation if running for forecast verification
       else
          $run_cmd -n $jedi_variational_num_procs -ppn $jedi_variational_num_procs_per_node $NETCDF_CONCATENATE_EXEC > ./concatenate_netcdf_${prefx}.log
       endif
