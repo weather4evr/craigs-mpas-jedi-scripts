@@ -50,12 +50,11 @@ cat >> $output_fname << EOF
  #- *reduceObsSpace
 EOF
 
-if ( $assimOrEval == eval ) then
-  cat >> $output_fname << EOF2
-  - filter: Perform Action
-    filter variables: *simulatedVars # [airTemperature, windEastward, windNorthward, specificHumidity]
-    action:
-      name: passivate
-EOF2
-
-endif
+#if ( $assimOrEval == eval ) then
+#  cat >> $output_fname << EOF2
+#  - filter: Perform Action
+#    filter variables: *simulatedVars # [airTemperature, windEastward, windNorthward, specificHumidity]
+#    action:
+#      name: passivate
+#EOF2
+#endif
